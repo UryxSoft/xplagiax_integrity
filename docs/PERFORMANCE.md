@@ -40,6 +40,21 @@ Conclusiones:
 
 Script: `scripts/bench_ingest.py <url-de-bd-desechable> <palabras>` (borra la base de datos de destino).
 
+### 1.3 Normalización de texto
+
+Texto sintético de 300.000 palabras (2,26 M caracteres, ~313 páginas). Tiempo: mejor de 3 ejecuciones, **sin** `tracemalloc` activo. Memoria: pico de asignaciones con `tracemalloc` en una ejecución aparte.
+
+| Implementación | ASCII | ~25 % de palabras con acentos | Pico de memoria |
+|---|---|---|---|
+| Por carácter (primera versión, hoy referencia en `tests/`) | 0,82 s | 1,17 s | 122 MB |
+| Por palabra + offsets en `array('I')` | 0,58 s | 0,73 s | 70 MB |
+| Además, iterador con una palabra de adelanto (versión actual) | **0,41 s** | **0,72 s** | **31 MB** |
+
+- El resultado (texto + mapa de offsets) ocupa unos 11 MB para ese documento.
+- Una primera medición mostró ~5 s porque se tomó el tiempo con `tracemalloc` activo. **Tiempo y memoria se miden por separado.**
+- **Python o Rust:** con 0,4–0,7 s para una tesis de 300 páginas, la normalización no es un cuello de botella frente a las llamadas a APIs externas. No hay motivo medible para reescribirla en Rust. Se reconsiderará si el profiling de un motor real la señala.
+- La versión optimizada se compara con la de referencia en 6.000 entradas aleatorias (texto y offsets idénticos): `tests/test_normalization.py`.
+
 ### Sin medir todavía
 Percentiles p50/p95/p99 bajo carga concurrente (también de la ingestión), throughput, CPU por petición, conexiones a MySQL bajo carga, imagen Docker (no hay daemon en esta sesión) y MySQL 8 real (solo se probó MariaDB).
 

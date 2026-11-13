@@ -19,6 +19,9 @@
 - Tope del cuerpo de las peticiones: de 16 a 12 MiB, alineado con el límite de 5 millones de caracteres (mediciones en `docs/PERFORMANCE.md` §1.2).
 - `document_ingestion` pasa a `baseline` en `/api/v1/version`.
 
+### Añadido (normalización)
+- `integrity/domain/normalization.py`: normalización determinista y neutra respecto al idioma, con mapa exacto de offsets al texto original. 0,41 s y 31 MB de pico para 300.000 palabras (`docs/PERFORMANCE.md` §1.3).
+
 ## [0.1.0] — 2026-11-13 — Fase 1: fundación
 
 ### Añadido

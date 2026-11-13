@@ -31,7 +31,7 @@ ENGINES: tuple[Engine, ...] = (
     Engine("document_ingestion", Maturity.BASELINE, "POST /documents (xplagiax.document/v1): validation, idempotency, versions, compressed storage, purge. Contract v1 awaits confirmation by xplagiax_appcli2.", version="1"),
     Engine("document_extraction", Maturity.REQUIRES_RESEARCH, "Primary extraction lives in xplagiax_appcli2. Local fallback and anydoc / LightOnOCR comparison pending benchmark."),
     Engine("ocr", Maturity.REQUIRES_RESEARCH, "Upstream responsibility by default; on-demand local OCR only if benchmark justifies it."),
-    Engine("text_normalization", Maturity.PENDING, "Deterministic Unicode/whitespace normalisation with offset mapping to original text."),
+    Engine("text_normalization", Maturity.BASELINE, "Deterministic, language-neutral normalisation with an exact offset map back to the original text (integrity/domain/normalization.py). Not yet wired into an engine.", version="1"),
     Engine("similarity", Maturity.REQUIRES_RESEARCH, "Lexical (n-gram/winnowing) first; semantic via shared Qdrant only where licences allow."),
     Engine("ai_content_analysis", Maturity.REQUIRES_EXTERNAL_API, "Delegated to sibling services (beyond_xota / finderx / scitrace); contracts not yet inspected."),
     Engine("citation_verification", Maturity.PENDING, "In-text citation <-> bibliography linking; DOI lookups depend on source terms."),

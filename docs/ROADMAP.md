@@ -33,6 +33,6 @@ Hecho: `POST /documents`, versiones, lectura de metadatos, purga, idempotencia (
 
 Falta para cerrarla:
 - Confirmación del contrato v1 por el equipo de appcli2 y fixtures reales en `tests/fixtures`.
-- Normalización y segmentación con mapa de offsets (la necesitan todos los motores).
+- ~~Normalización con mapa de offsets~~ hecho (`domain/normalization.py`). Falta la segmentación en frases y fragmentos para los motores.
 - Proceso periódico de purga por retención.
 - Limitar la concurrencia de ingestas grandes (depende del rate limiting, Etapa 1b).
