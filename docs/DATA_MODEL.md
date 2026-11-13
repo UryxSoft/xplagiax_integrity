@@ -79,7 +79,7 @@ Qué garantiza esto y qué no:
 
 ## 5. Retención y borrado [PARCIAL]
 
-- Purgar = borrar las filas de `document_contents` (y en el futuro `evidence.excerpt_text`), poner `documents.title` a nulo y marcar `documents.purged_at`. **Implementado** en `DELETE /documents/{id}`. **Se conservan** los hashes, los hallazgos sin fragmentos y la auditoría, para que un certificado emitido pueda verificarse sin guardar el contenido.
+- Purgar = borrar las filas de `document_contents` y los `evidence.excerpt_text` del documento (sus hashes se conservan), poner `documents.title` a nulo y marcar `documents.purged_at`. **Implementado** en `DELETE /documents/{id}`. **Se conservan** los hashes, los hallazgos sin fragmentos y la auditoría, para que un certificado emitido pueda verificarse sin guardar el contenido.
 - No hay `ON DELETE CASCADE`: el borrado es una operación explícita y auditada (Etapa 2).
 - `documents.retention_until` se calcula al ingerir a partir de `organizations.retention_days`. **Falta** el proceso periódico que purga los vencidos.
 - Retención por defecto de la plataforma: a definir con negocio y legal.

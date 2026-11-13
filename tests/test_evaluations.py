@@ -66,13 +66,15 @@ def test_evaluation_runs_end_to_end(app, client, tenant):
     r = evaluate(client, tenant, vid)
     assert r.status_code == 202
     ev = r.get_json()
-    assert ev["status"] == "queued" and [s["name"] for s in ev["stages"]] == ["content_check", "doi_detection"]
+    assert ev["status"] == "queued" and [s["name"] for s in ev["stages"]] == [
+        "content_check", "doi_detection", "citation_consistency"]
     assert all(s["status"] == "pending" for s in ev["stages"])
 
-    assert drain(app) == [StageStatus.SUCCEEDED, StageStatus.SUCCEEDED]
+    assert drain(app) == [StageStatus.SUCCEEDED] * 3
     ev = read(client, tenant, ev["id"])
     assert ev["status"] == "completed" and ev["finished_at"]
-    check, dois = ev["stages"]
+    check, dois, cites = ev["stages"]
+    assert cites["result"]["payload"]["references_section_found"] is False  # this text has no bibliography
     assert check["result"]["payload"]["content_sha256"] == ev_hash(app, vid)
     assert dois["result"]["payload"]["unique_dois"] == ["10.1016/j.cell.2009.01.002", "10.1038/nature12373"]
     loc = dois["result"]["payload"]["mentions"][0]["location"]
@@ -155,7 +157,7 @@ def test_tampered_content_fails_required_stage_and_skips_the_rest(app, client, t
     ev = read(client, tenant, eid)
     assert ev["status"] == "failed" and ev["error_code"] == "content_hash_mismatch"
     assert [(s["status"], s["error_code"]) for s in ev["stages"]] == [
-        ("failed", "content_hash_mismatch"), ("skipped", "previous_stage_failed")]
+        ("failed", "content_hash_mismatch"), ("skipped", "previous_stage_failed"), ("skipped", "previous_stage_failed")]
 
 
 def test_purged_document_cannot_be_evaluated_and_running_one_fails_cleanly(app, client, tenant):
@@ -186,7 +188,7 @@ def test_optional_stage_failure_gives_partial_completion(app, client, tenant, mo
     drain(app)
     ev = read(client, tenant, eid)
     assert ev["status"] == "partially_completed"
-    assert [s["status"] for s in ev["stages"]] == ["succeeded", "failed"]
+    assert [s["status"] for s in ev["stages"]] == ["succeeded", "failed", "succeeded"]
 
 
 def test_engine_crash_is_retried_with_backoff_then_fails(app, client, tenant, monkeypatch):
@@ -277,3 +279,106 @@ def test_worker_cli_once(app, client, tenant):
     evaluate(client, tenant, vid)
     r = app.test_cli_runner().invoke(args=["integrity", "worker", "--once"])
     assert r.exit_code == 0 and "after 1 stage" in r.output
+
+
+def test_citation_findings_are_persisted_with_evidence_and_purged_excerpts(app, client, tenant):
+    from integrity.infrastructure.db.models import Evidence, Finding
+    from tests.test_citations import NUMERIC
+
+    text = "\n".join(NUMERIC)
+    vid = ingest(client, tenant, text=text, paragraphs=[[1, i + 1, p] for i, p in enumerate(NUMERIC)])
+    eid = evaluate(client, tenant, vid).get_json()["id"]
+    drain(app)
+    ev = read(client, tenant, eid)
+    assert ev["status"] == "completed"
+    assert ev["stages"][2]["result"]["payload"]["citations_without_reference"] == 1
+    with session_scope(app) as s:
+        findings = s.scalars(select(Finding).where(Finding.evaluation_id == eid)).all()
+        assert sorted(f.category for f in findings) == ["citation_without_reference", "reference_not_cited"]
+        ev_rows = s.scalars(select(Evidence)).all()
+        assert len(ev_rows) == 2 and all(e.excerpt_text and len(e.excerpt_sha256) == 64 for e in ev_rows)
+        assert all(e.document_version_id == vid for e in ev_rows)
+        hashes = {e.id: e.excerpt_sha256 for e in ev_rows}
+    client.delete(f"/api/v1/documents/{doc_of(app, vid)}", headers=h(tenant))
+    with session_scope(app) as s:
+        rows = s.scalars(select(Evidence)).all()
+        assert all(e.excerpt_text is None for e in rows)
+        assert {e.id: e.excerpt_sha256 for e in rows} == hashes  # still verifiable
+
+
+# ---------------------------------------------------------------- report
+
+def _paper(client, tenant):
+    from tests.test_citations import NUMERIC
+
+    text = "\n".join(NUMERIC) + "\nSee doi:10.1038/nature12373."
+    paras = [[1, i + 1, p] for i, p in enumerate(NUMERIC)]
+    paras[1][2] += " See doi:10.1038/nature12373."
+    return ingest(client, tenant, text="\n".join(p[2] for p in paras), paragraphs=paras)
+
+
+def test_report_is_built_from_stored_data_and_reproducible(app, client, tenant):
+    vid = _paper(client, tenant)
+    eid = evaluate(client, tenant, vid).get_json()["id"]
+    assert client.get(f"/api/v1/evaluations/{eid}/report", headers=h(tenant)).status_code == 409  # not finished
+    drain(app)
+    r1 = client.get(f"/api/v1/evaluations/{eid}/report", headers=h(tenant)).get_json()
+    assert r1["product"] == "research_paper" and r1["evaluation"]["status"] == "completed"
+    assert r1["document"]["content_sha256"] == ev_hash(app, vid)
+    assert [s["engine"]["name"] for s in r1["stages"]] == ["content_check", "doi_detection", "citation_consistency"]
+    assert r1["finding_counts"] == {"citation_without_reference": 1, "reference_not_cited": 1}
+    f = r1["findings"][0]
+    assert f["nature"] == "structural_observation" and "confirm manually" in f["nature_explained"]
+    assert f["evidence"][0]["excerpt"] and len(f["evidence"][0]["excerpt_sha256"]) == 64
+    assert any("does not mean the document is original" in d for d in r1["disclaimer"])
+    assert any("not verified" in l for l in r1["limitations"])
+    assert r1["sources_consulted"] == []  # no external source was queried
+
+    r2 = client.get(f"/api/v1/evaluations/{eid}/report", headers=h(tenant)).get_json()
+    assert r2["report"]["content_sha256"] == r1["report"]["content_sha256"] and r2["report"]["id"] == r1["report"]["id"]
+
+    # Purging the document removes excerpts but the report hash still reproduces.
+    client.delete(f"/api/v1/documents/{doc_of(app, vid)}", headers=h(tenant))
+    r3 = client.get(f"/api/v1/evaluations/{eid}/report", headers=h(tenant)).get_json()
+    assert r3["report"]["content_sha256"] == r1["report"]["content_sha256"]
+    ev3 = r3["findings"][0]["evidence"][0]
+    assert ev3["excerpt"] is None and ev3["excerpt_purged"] is True
+    assert ev3["excerpt_sha256"] == f["evidence"][0]["excerpt_sha256"]
+
+
+def test_tampering_with_stored_findings_is_detected(app, client, tenant):
+    from integrity.infrastructure.db.models import Finding
+
+    vid = _paper(client, tenant)
+    eid = evaluate(client, tenant, vid).get_json()["id"]
+    drain(app)
+    assert client.get(f"/api/v1/evaluations/{eid}/report", headers=h(tenant)).status_code == 200
+    with session_scope(app) as s:
+        s.scalars(select(Finding)).first().title = "edited after the fact"
+    r = client.get(f"/api/v1/evaluations/{eid}/report", headers=h(tenant))
+    assert r.status_code == 500 and r.get_json()["error"]["code"] == "report_mismatch"
+
+
+def test_report_follows_document_visibility(app, client, tenant):
+    vid = _paper(client, tenant)
+    eid = evaluate(client, tenant, vid).get_json()["id"]
+    drain(app)
+    assert client.get(f"/api/v1/evaluations/{eid}/report", headers=h(tenant, user="43")).status_code == 404
+    assert client.get(f"/api/v1/evaluations/{eid}/report", headers=h(tenant, user="rev")).status_code == 200
+
+
+def test_partial_and_patent_reports_state_their_limits(app, client, tenant, monkeypatch):
+    def broken(inp):
+        raise StageFailure("bad_input", "cannot", retryable=False)
+
+    monkeypatch.setitem(registry.ENGINES, ("citation_consistency", "1"), broken)
+    vid = _paper(client, tenant)
+    eid = evaluate(client, tenant, vid).get_json()["id"]
+    pid = evaluate(client, tenant, vid, product="patent_integrity", key="eval-key-pat1").get_json()["id"]
+    drain(app)
+    rp = client.get(f"/api/v1/evaluations/{eid}/report", headers=h(tenant)).get_json()
+    assert rp["evaluation"]["status"] == "partially_completed"
+    assert rp["limitations"][0].startswith("Some optional stages did not complete")
+    assert any("[citation_consistency] stage failed (bad_input)" in l for l in rp["limitations"])
+    pt = client.get(f"/api/v1/evaluations/{pid}/report", headers=h(tenant)).get_json()
+    assert "not a legal opinion" in pt["disclaimer"][0]

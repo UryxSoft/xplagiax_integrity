@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 
+from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -28,7 +29,7 @@ from integrity.core.ids import utcnow
 from integrity.domain.enums import ActorType, SourceKind, UserRole
 from integrity.domain.ingestion_contract import IncomingDocument
 from integrity.infrastructure import content_store
-from integrity.infrastructure.db.models import Document, DocumentVersion, Organization
+from integrity.infrastructure.db.models import Document, DocumentVersion, Evidence, Organization
 from integrity.infrastructure.db.repositories import TenantScope
 from integrity.security.audit import record_audit_event
 
@@ -197,6 +198,10 @@ def purge_document(session: Session, actor: Actor, document_id: str) -> tuple[Do
     versions = scope.versions_of(document.id)
     removed = content_store.delete_for_versions(session, organization_id=scope.organization_id,
                                                 version_ids=[v.id for v in versions])
+    # Evidence excerpts quote the document: purge them too (their hashes stay, so they remain verifiable).
+    session.execute(update(Evidence).where(Evidence.organization_id == scope.organization_id,
+                                           Evidence.document_version_id.in_([v.id for v in versions]))
+                    .values(excerpt_text=None).execution_options(synchronize_session=False))
     document.purged_at = utcnow()
     document.title = None  # titles can be confidential (unfiled inventions)
     record_audit_event(session, action="document.purged", actor_type=ActorType.SERVICE_CLIENT,

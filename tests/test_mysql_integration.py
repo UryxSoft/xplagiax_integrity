@@ -144,7 +144,7 @@ def test_concurrent_tenant_provisioning_is_idempotent(mysql_app):
 
 
 def test_parallel_workers_run_each_stage_exactly_once(mysql_app):
-    """4 workers in parallel over 12 evaluations (24 stages) on InnoDB with SKIP LOCKED."""
+    """4 workers in parallel over 12 evaluations (36 stages) on InnoDB with SKIP LOCKED."""
     import threading
 
     from sqlalchemy import func, select
@@ -184,9 +184,9 @@ def test_parallel_workers_run_each_stage_exactly_once(mysql_app):
     assert not errors, errors
     with session_scope(mysql_app) as s:
         stages = s.scalars(select(EvaluationStage)).all()
-        assert len(stages) == 24
+        assert len(stages) == 36
         assert all(st.status == StageStatus.SUCCEEDED and st.attempt == 1 for st in stages), \
             [(st.stage_name, st.status, st.attempt, st.error_code) for st in stages if st.attempt != 1 or st.status != StageStatus.SUCCEEDED]
-        assert s.scalar(select(func.count()).select_from(EvaluationResult)) == 24
+        assert s.scalar(select(func.count()).select_from(EvaluationResult)) == 36
         from integrity.infrastructure.db.models import Evaluation
         assert {e.status for e in s.scalars(select(Evaluation))} == {EvaluationStatus.COMPLETED}

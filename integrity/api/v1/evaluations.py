@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request
 
 from integrity.api.v1.documents import _actor, _document_id, _idempotency_key
 from integrity.application.evaluations import cancel_evaluation, create_evaluation, get_evaluation
+from integrity.application.reports import build_report
 from integrity.core.errors import ValidationFailed
 from integrity.infrastructure.db.session import db_session
 from integrity.security.auth import require_auth
@@ -75,6 +76,14 @@ def register(bp: Blueprint) -> None:
     @require_auth()
     def read_evaluation(evaluation_id: str):
         return jsonify(_view_json(get_evaluation(db_session(), _actor(), _document_id(evaluation_id))))
+
+    @bp.get("/evaluations/<evaluation_id>/report")
+    @require_auth()
+    def read_report(evaluation_id: str):
+        session = db_session()
+        report = build_report(session, _actor(), _document_id(evaluation_id))
+        session.commit()  # first generation records the report hash
+        return jsonify(report)
 
     @bp.post("/evaluations/<evaluation_id>/cancel")
     @require_auth()

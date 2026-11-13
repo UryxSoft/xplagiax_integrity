@@ -31,7 +31,7 @@ from sqlalchemy import and_, exists, func, or_, select, update
 from sqlalchemy.orm import Session, aliased
 
 from integrity.core.ids import utcnow
-from integrity.domain.enums import EvaluationStatus, StageStatus
+from integrity.domain.enums import EvaluationStatus, EvidenceKind, StageStatus
 from integrity.engines.base import StageFailure, StageInput, StageOutput
 from integrity.engines.registry import ENGINES
 from integrity.infrastructure import content_store
@@ -42,6 +42,8 @@ from integrity.infrastructure.db.models import (
     Evaluation,
     EvaluationResult,
     EvaluationStage,
+    Evidence,
+    Finding,
 )
 from integrity.infrastructure.db.session import session_scope
 
@@ -176,6 +178,33 @@ def _load_input(session: Session, claim: Claim) -> tuple[StageInput, EngineVersi
             engine, st.stage_name)
 
 
+_MAX_EXCERPT = 1000
+
+
+def _store_findings(session: Session, st: EvaluationStage, ev: Evaluation, engine_version_id: str,
+                    output: StageOutput, now) -> None:
+    from decimal import Decimal
+
+    for fd in output.findings:
+        f = Finding(organization_id=st.organization_id, evaluation_id=st.evaluation_id, stage_id=st.id,
+                    engine_version_id=engine_version_id, category=fd.category[:64], nature=fd.nature,
+                    severity=fd.severity, title=fd.title[:255], description=fd.description, method=fd.method[:128],
+                    confidence=Decimal(str(round(fd.confidence, 4))) if fd.confidence is not None else None,
+                    confidence_calibrated=fd.confidence_calibrated, location=fd.location,
+                    limitations=list(fd.limitations), recommendation=fd.recommendation)
+        session.add(f)
+        session.flush()
+        for ed in fd.evidence:
+            excerpt = ed.excerpt[:_MAX_EXCERPT] if ed.excerpt else None
+            session.add(Evidence(
+                organization_id=st.organization_id, finding_id=f.id, kind=ed.kind,
+                document_version_id=ev.document_version_id if ed.kind == EvidenceKind.DOCUMENT_EXCERPT else None,
+                locator=ed.locator, excerpt_text=excerpt,
+                excerpt_sha256=hashlib.sha256(excerpt.encode()).hexdigest() if excerpt else None,
+                external_identifier=ed.external_identifier, external_url=ed.external_url,
+                retrieved_at=now if ed.kind == EvidenceKind.EXTERNAL_RECORD else None))
+
+
 def _backoff(attempt: int) -> int:
     return min(30 * 2 ** (attempt - 1), 900)
 
@@ -220,6 +249,7 @@ def execute(app: Flask, claim: Claim) -> StageStatus:
                                    stage_id=st.id, engine_version_id=engine_version_id, schema_version=RESULT_SCHEMA,
                                    payload=output.payload, payload_sha256=hashlib.sha256(payload_json.encode()).hexdigest(),
                                    limitations=list(output.limitations)))
+            _store_findings(s, st, ev, engine_version_id, output, now)
             st.status, st.finished_at, st.lease_owner, st.lease_expires_at = StageStatus.SUCCEEDED, now, None, None
             st.error_code = st.error_detail = None
             s.flush()

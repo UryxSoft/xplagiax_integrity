@@ -41,3 +41,16 @@ Antes de que un motor pase a `implemented` en `domain/capabilities.py` necesita:
 5. Pruebas de regresión con las salidas guardadas.
 
 Las métricas se publican en este archivo por versión de motor. **No se escribe ninguna cifra de precisión sin el informe que la respalde.**
+
+## 5. Estado por motor
+
+| Motor | Método | Validación |
+|---|---|---|
+| `content_check` v1 | Recalcula el SHA-256 del texto y lo compara con el de la ingesta | Determinista; pruebas unitarias |
+| `doi_detection` v1 | Expresión regular conservadora sobre el texto; solo detección | Pruebas de casos positivos y negativos. **Sin métricas sobre un corpus** |
+| `citation_consistency` v1 | Localiza la sección de referencias por su encabezado (multilingüe), decide el estilo (numérico o autor-año) y cruza citas con entradas. Autor-año usa solo el primer apellido y el año, sin distinguir acentos ni mayúsculas | Pruebas sobre fragmentos realistas en inglés y español. **Sin precisión ni exhaustividad medidas.** Sus hallazgos son `structural_observation` de severidad `low` y piden confirmación manual |
+
+Riesgos conocidos de `citation_consistency` v1, que el corpus de validación debe medir:
+- **Falsos positivos:** citas con formatos no contemplados ("Smith 2020" sin coma ni paréntesis, "[Smith20]"), apellidos compuestos o con partículas ("van der Berg", "de la Cruz"), entradas de referencia de varias líneas que llegan como varios párrafos.
+- **Falsos negativos:** varios trabajos del mismo autor y año ("2020a", "2020b") se tratan como uno; corchetes numéricos que no son citas (por ejemplo, intervalos "[0, 1]") pueden contarse como citas.
+- Si no encuentra la sección de referencias, **no produce hallazgos** y lo declara como limitación.

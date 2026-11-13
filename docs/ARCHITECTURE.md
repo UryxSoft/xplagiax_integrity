@@ -186,7 +186,9 @@ Las pruebas nunca llaman a proveedores reales. Las pruebas en vivo de los adapta
 | Todos los motores científicos | Pendiente / requiere investigación / requiere API externa | `domain/capabilities.py`, `GET /api/v1/version` |
 | Evaluaciones (crear, consultar, cancelar) y workers con lease | Implementado | `test_evaluations.py`, `test_mysql_integration.py` |
 | Motores `content_check` y `doi_detection` | Implementado (alcance limitado: detección, no verificación) | `test_evaluations.py` |
-| Informes, certificados, verificación | Pendiente (el esquema existe) | — |
+| Motor `citation_consistency` v1 (hallazgos con evidencia) | Base inicial, sin métricas de precisión | `test_citations.py`, `test_evaluations.py` |
+| Informe JSON reproducible | Base inicial (falta PDF) | `test_evaluations.py` |
+| Certificados y verificación | Pendiente (el esquema existe; decisión sobre los certificados de appcli2) | — |
 
 ## 11. Riesgos técnicos
 

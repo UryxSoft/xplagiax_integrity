@@ -29,6 +29,7 @@ Cabeceras transversales:
 
 | POST | `/evaluations` | sí | Cuerpo `{document_version_id, product, criteria_profile?, criteria_version?}` + `Idempotency-Key`. `202` encolada, `200` repetición. Errores: 404 (versión no visible), 409, 410 (documento borrado), 422 |
 | GET | `/evaluations/{id}` | sí | Estado, etapas (estado, intentos, error) y resultado de cada etapa terminada (`payload`, `payload_sha256`, `limitations`) |
+| GET | `/evaluations/{id}/report` | sí | Informe JSON (§4). `409` si la evaluación no ha terminado; `500 report_mismatch` si los datos guardados ya no reproducen el informe registrado |
 | POST | `/evaluations/{id}/cancel` | sí | Idempotente. Cancela las etapas pendientes; la que esté en curso termina y su resultado se descarta |
 
 La plataforma no tiene organizaciones: cada usuario usa la referencia `user:<id>` (INTEGRATION_XPLAGIAX §2).
@@ -37,7 +38,7 @@ La plataforma no tiene organizaciones: cada usuario usa la referencia `user:<id>
 
 | Producto | Etapas |
 |---|---|
-| `research_paper`, `dissertation` | `content_check` (el texto coincide con el hash de la ingesta; resumen de calidad) → `doi_detection` (opcional: DOI escritos y su ubicación; **sin verificar**) |
+| `research_paper`, `dissertation` | `content_check` (el texto coincide con el hash de la ingesta; resumen de calidad) → `doi_detection` (opcional: DOI escritos y su ubicación; **sin verificar**) → `citation_consistency` (opcional: citas sin referencia y referencias no citadas) |
 | `patent_integrity` | `content_check` |
 
 Estados: la evaluación pasa por `queued → processing → completed | partially_completed | failed | cancelled`. `partially_completed` significa que falló una etapa opcional; un fallo de una etapa obligatoria da `failed` y marca las siguientes como `skipped`.
@@ -114,3 +115,19 @@ Reglas previstas:
 - `source.filename` se guarda como dato y nunca se usa como ruta.
 
 **Pregunta abierta para appcli2:** el texto viaja dos veces (en `text` y dentro de `paragraphs`). Si appcli2 siempre envía párrafos, `text` podría derivarse de ellos y el cuerpo se reduciría casi a la mitad.
+
+## 4. Informe JSON (`schema_version` 1)
+
+Se construye **solo con lo guardado** (`integrity/application/reports.py`); no recalcula nada.
+
+| Campo | Contenido |
+|---|---|
+| `evaluation`, `document` | Identificadores, estado, `config_sha256`, criterios, `content_sha256` y `file_sha256` del documento evaluado |
+| `stages[]` | Por etapa: estado, motor (nombre, versión, hash de configuración), `result_sha256` y resumen |
+| `sources_consulted[]` | Fuente, operación, resultado y número de llamadas. Incluye las bloqueadas por política |
+| `findings[]` | Categoría, `nature` y su explicación, severidad, método, ubicación, limitaciones, recomendación y evidencias (fragmento y su SHA-256) |
+| `limitations[]` | Las de la ingesta y las de cada etapa, más las etapas que no terminaron |
+| `disclaimer[]` | Límites del producto, y que la ausencia de hallazgos no significa originalidad |
+| `report` | `id`, `content_sha256` y la fecha de primera generación |
+
+**Reproducibilidad:** `content_sha256` se calcula sobre una forma canónica en la que cada fragmento se sustituye por su SHA-256. Regenerar el informe da el mismo hash, también después de purgar el documento. Si los datos guardados cambian (por ejemplo, se edita un hallazgo), el servicio rechaza el informe en lugar de devolver uno distinto.

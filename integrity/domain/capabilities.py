@@ -34,12 +34,12 @@ ENGINES: tuple[Engine, ...] = (
     Engine("text_normalization", Maturity.BASELINE, "Deterministic, language-neutral normalisation with an exact offset map back to the original text (integrity/domain/normalization.py). Not yet wired into an engine.", version="1"),
     Engine("similarity", Maturity.REQUIRES_RESEARCH, "Lexical (n-gram/winnowing) first; semantic via shared Qdrant only where licences allow."),
     Engine("ai_content_analysis", Maturity.REQUIRES_EXTERNAL_API, "Delegated to sibling services (beyond_xota / finderx / scitrace); contracts not yet inspected."),
-    Engine("citation_verification", Maturity.PENDING, "DOI detection/normalisation exists (integrity/domain/doi.py). In-text citation <-> bibliography linking pending; DOI lookups depend on source terms."),
+    Engine("citation_verification", Maturity.BASELINE, "citation_consistency v1: in-text citations vs reference list (numeric and author-year), heuristic, no precision metrics yet. DOI detection exists; DOI verification needs an authorised source.", version="1"),
     Engine("academic_source_discovery", Maturity.REQUIRES_EXTERNAL_API, "Crossref adapter built (DOI lookup, bibliographic search) and blocked by policy until its terms are reviewed. PubMed / Europe PMC / arXiv pending. Terms UNVERIFIED."),
     Engine("patent_search", Maturity.REQUIRES_EXTERNAL_API, "EPO OPS / LOD, USPTO ODP, IP Australia...; terms UNVERIFIED."),
     Engine("semantic_comparison", Maturity.REQUIRES_RESEARCH, "Claim-element mapping; method and metrics to be validated before exposure."),
-    Engine("evidence_management", Maturity.BASELINE, "Persistence model (findings, evidence, api_requests) exists; no producers yet."),
-    Engine("report_generation", Maturity.PENDING, "JSON report schema first; PDF later."),
+    Engine("evidence_management", Maturity.BASELINE, "Findings require evidence and an epistemic nature; excerpts are hashed and purged with the document."),
+    Engine("report_generation", Maturity.BASELINE, "JSON report from stored rows only, with a reproducible hash that survives purges. PDF pending.", version="1"),
     Engine("certification", Maturity.PENDING, "Data model exists; criteria profiles and signing scheme pending audit."),
 )
 

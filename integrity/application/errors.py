@@ -38,5 +38,15 @@ class UnanalysableDocument(ApplicationError):
     code = "insufficient_content"
 
 
+class NotReady(ApplicationError):
+    code = "not_ready"
+
+
+class DataInconsistency(ApplicationError):
+    """Stored data no longer reproduces a recorded artefact. Must be investigated."""
+
+    code = "report_mismatch"
+
+
 class GoneError(ApplicationError):
     code = "gone"

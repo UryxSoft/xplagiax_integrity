@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0] — 2026-11-13 — Etapa 3b: primer motor con hallazgos e informe JSON
+
+### Añadido
+- Motor `citation_consistency` v1: citas sin referencia y referencias no citadas, en estilo numérico y autor-año, con encabezados en varios idiomas. Sus hallazgos son observaciones estructurales que piden confirmación manual.
+- Los motores pueden devolver hallazgos con evidencia. Un hallazgo sin evidencia, o con una confianza que no declara si está calibrada, se rechaza al construirlo.
+- `GET /api/v1/evaluations/{id}/report`: informe JSON construido solo con lo guardado, con un hash reproducible que no cambia al purgar el documento y que detecta datos modificados.
+- La purga del documento borra también los fragmentos citados en las evidencias y conserva sus hashes.
+
 ## [0.5.0] — 2026-11-13 — Etapa 3c: evaluaciones y workers
 
 ### Añadido
