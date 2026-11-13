@@ -1,6 +1,28 @@
 # xplagiax-integrity
 An AI-powered document integrity platform by XplagiaX, bringing together patent analysis, scientific paper review, and dissertation certification through shared engines for AI detection, plagiarism analysis, similarity assessment, citation verification, and document intelligence.
 
+## Technical status & quickstart
+
+> **Status: Phase 1 foundation.** The service skeleton, security base, data model and migrations exist and are tested.
+> **No scientific engine is implemented yet.** `GET /api/v1/version` lists each engine's real maturity.
+> Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md) · Audit: [docs/INITIAL_AUDIT.md](docs/INITIAL_AUDIT.md)
+
+Requirements: Python ≥ 3.12, MySQL 8 (SQLite is accepted outside production).
+
+```bash
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements-dev.txt && pip install -e . --no-deps
+export XI_DATABASE_URL=sqlite:///./instance/dev.sqlite3 && mkdir -p instance
+alembic upgrade head
+python -m pytest
+flask --app integrity.app:create_app integrity create-client --name local --scope platform
+flask --app integrity.app:create_app run
+curl -s localhost:5000/api/v1/health/ready
+```
+
+Optional MySQL integration tests: `XI_TEST_MYSQL_URL=mysql+pymysql://user:pass@host:3306/disposable_db python -m pytest tests/test_mysql_integration.py`.
+Configuration reference: [.env.example](.env.example).
+
 
 # XplagiaX Integrity Platform
 

@@ -1,0 +1,43 @@
+# Validez científica de los resultados
+
+## 1. Naturaleza epistémica de cada hallazgo
+
+Cada `Finding` declara una `nature` (`domain/enums.py::FindingNature`). El informe muestra cada naturaleza con un formato y un lenguaje distintos:
+
+| Naturaleza | Qué significa | Lenguaje permitido | Lenguaje prohibido |
+|---|---|---|---|
+| `verified_evidence` | Hecho que una persona puede comprobar (el DOI X apunta al título Y, distinto del citado) | "Se verificó que…" | — |
+| `textual_match` | Solapamiento exacto o casi exacto con una fuente identificada | "Coincidencia textual con [fuente], N caracteres" | "plagio" |
+| `semantic_similarity` | Proximidad calculada por un modelo | "Similitud semántica con…" | "copiado", "falta de novedad" |
+| `statistical_indicator` | Indicador probabilístico (contenido de IA) | "Indicadores asociados a…", con limitaciones | "generado por IA", "fraude", un % no calibrado presentado como probabilidad |
+| `structural_observation` | Sección ausente, referencia sin citar… | "Se observó…" | — |
+| `not_determinable` | El sistema no pudo concluir | "No determinable porque…" | — |
+
+**Resultados distintos que no deben confundirse** (cada uno es un hallazgo o una limitación distinta):
+- `NO MATCH FOUND IN QUERIED SOURCES` ≠ `VERIFIED ORIGINAL CONTENT`. El sistema **nunca** emite lo segundo.
+- DOI no encontrado ≠ DOI inexistente ≠ error de consulta ≠ metadatos inconsistentes. `api_requests.outcome` los distingue.
+- La API no devolvió resultados ≠ no existe la publicación.
+
+## 2. Confianza
+
+- `findings.confidence` es opcional. Si tiene valor, `confidence_calibrated` debe estar definido (CHECK en la BD).
+- Un valor solo se muestra como probabilidad si `confidence_calibrated = true` y hay un informe de calibración (datos, fecha, ECE o un equivalente) asociado a esa versión del motor.
+- Un score sin calibrar se muestra como score, con su método, nunca como "X % de probabilidad".
+
+## 3. Límites que no cambian
+
+- No hay conclusiones jurídicas: ni patentabilidad, ni novedad jurídica, ni infracción, ni FTO, ni validez.
+- No es una revisión por pares ni garantiza la aceptación editorial.
+- Un certificado acredita que **se ejecutó un proceso con criterios definidos sobre un documento con un hash dado**. No acredita originalidad, validez científica ni aceptación por la institución.
+- Un indicador de IA nunca basta, por sí solo, para un estado `REQUIRES_CORRECTIONS` o de rechazo en Dissertation: hace falta revisión humana (a confirmar en Fase 2).
+
+## 4. Validación por motor [DISEÑO]
+
+Antes de que un motor pase a `implemented` en `domain/capabilities.py` necesita:
+1. Una especificación del método (algoritmo, parámetros, idiomas que soporta).
+2. Un corpus de evaluación con licencia verificada y etiquetas documentadas: originales, coincidencias exactas, paráfrasis, citas correctas, referencias incorrectas o inexistentes, documentos multilingües y escaneados.
+3. Métricas: precision, recall, F1, FPR y FNR por idioma y tipo de documento. Estabilidad entre ejecuciones (los motores deterministas deben dar el mismo resultado byte a byte).
+4. Umbrales iniciales **marcados como provisionales** hasta calibrarlos.
+5. Pruebas de regresión con las salidas guardadas.
+
+Las métricas se publican en este archivo por versión de motor. **No se escribe ninguna cifra de precisión sin el informe que la respalde.**
