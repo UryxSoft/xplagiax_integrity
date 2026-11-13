@@ -2,7 +2,7 @@
 
 Revision ID: 0001
 Revises: 
-Create Date: 2026-11-13 12:50:34.752951
+Create Date: 2026-11-13 13:39:24.680541
 """
 from typing import Sequence, Union
 
@@ -29,6 +29,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_engine_versions')),
     sa.UniqueConstraint('engine_name', 'version', 'config_sha256', name=op.f('uq_engine_versions_engine_name_version_config_sha256')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     op.create_table('external_sources',
@@ -56,6 +57,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_external_sources')),
     sa.UniqueConstraint('code', name=op.f('uq_external_sources_code')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     op.create_table('organizations',
@@ -69,6 +71,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_organizations')),
     sa.UniqueConstraint('external_ref', name=op.f('uq_organizations_external_ref')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     op.create_table('audit_events',
@@ -86,6 +89,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_audit_events_organization_id_organizations')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_audit_events')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     with op.batch_alter_table('audit_events', schema=None) as batch_op:
@@ -108,6 +112,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_service_clients')),
     sa.UniqueConstraint('key_prefix', name=op.f('uq_service_clients_key_prefix')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     with op.batch_alter_table('service_clients', schema=None) as batch_op:
@@ -125,11 +130,9 @@ def upgrade() -> None:
     sa.UniqueConstraint('id', 'organization_id', name=op.f('uq_users_id_organization_id')),
     sa.UniqueConstraint('organization_id', 'external_ref', name=op.f('uq_users_organization_id_external_ref')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
-    with op.batch_alter_table('users', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_users_organization_id'), ['organization_id'], unique=False)
-
     op.create_table('projects',
     sa.Column('organization_id', sa.String(length=36), nullable=False),
     sa.Column('owner_user_id', sa.String(length=36), nullable=True),
@@ -141,6 +144,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_projects')),
     sa.UniqueConstraint('id', 'organization_id', name=op.f('uq_projects_id_organization_id')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     with op.batch_alter_table('projects', schema=None) as batch_op:
@@ -162,6 +166,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_documents')),
     sa.UniqueConstraint('id', 'organization_id', name=op.f('uq_documents_id_organization_id')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     with op.batch_alter_table('documents', schema=None) as batch_op:
@@ -181,6 +186,7 @@ def upgrade() -> None:
     sa.Column('byte_size', sa.Integer(), nullable=True),
     sa.Column('page_count', sa.Integer(), nullable=True),
     sa.Column('char_count', sa.Integer(), nullable=True),
+    sa.Column('word_count', sa.Integer(), nullable=True),
     sa.Column('language', sa.String(length=16), nullable=True),
     sa.Column('extraction_status', sa.Enum('pending', 'complete', 'partial', 'insufficient', 'failed', name='extractionstatus', native_enum=False, length=32), nullable=False),
     sa.Column('extraction_engine', sa.String(length=64), nullable=True),
@@ -191,8 +197,10 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_document_versions_organization_id_organizations')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_document_versions')),
     sa.UniqueConstraint('document_id', 'version_number', name=op.f('uq_document_versions_document_id_version_number')),
+    sa.UniqueConstraint('id', 'organization_id', 'content_sha256', name=op.f('uq_document_versions_id_organization_id_content_sha256')),
     sa.UniqueConstraint('id', 'organization_id', name=op.f('uq_document_versions_id_organization_id')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     with op.batch_alter_table('document_versions', schema=None) as batch_op:
@@ -205,6 +213,7 @@ def upgrade() -> None:
     sa.Column('product', sa.Enum('patent_integrity', 'research_paper', 'dissertation', name='product', native_enum=False, length=32), nullable=False),
     sa.Column('status', sa.Enum('pending', 'queued', 'processing', 'partially_completed', 'completed', 'failed', 'cancelled', name='evaluationstatus', native_enum=False, length=32), nullable=False),
     sa.Column('idempotency_key', sa.String(length=128), nullable=False),
+    sa.Column('upstream_ref', sa.String(length=64), nullable=True),
     sa.Column('criteria_profile', sa.String(length=64), nullable=True),
     sa.Column('criteria_version', sa.String(length=32), nullable=True),
     sa.Column('config_snapshot', sa.JSON().with_variant(mysql.JSON(), 'mysql'), nullable=False),
@@ -218,14 +227,17 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_evaluations_organization_id_organizations')),
     sa.ForeignKeyConstraint(['requested_by_user_id', 'organization_id'], ['users.id', 'users.organization_id'], name=op.f('fk_evaluations_requested_by_user_id_users')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_evaluations')),
+    sa.UniqueConstraint('id', 'document_version_id', 'organization_id', name=op.f('uq_evaluations_id_document_version_id_organization_id')),
     sa.UniqueConstraint('id', 'organization_id', name=op.f('uq_evaluations_id_organization_id')),
     sa.UniqueConstraint('organization_id', 'idempotency_key', name=op.f('uq_evaluations_organization_id_idempotency_key')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     with op.batch_alter_table('evaluations', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_evaluations_document_version_id_product'), ['document_version_id', 'product'], unique=False)
         batch_op.create_index(batch_op.f('ix_evaluations_organization_id_status_created_at'), ['organization_id', 'status', 'created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_evaluations_organization_id_upstream_ref'), ['organization_id', 'upstream_ref'], unique=False)
 
     op.create_table('api_requests',
     sa.Column('organization_id', sa.String(length=36), nullable=True),
@@ -242,15 +254,17 @@ def upgrade() -> None:
     sa.Column('adapter_version', sa.String(length=32), nullable=False),
     sa.Column('requested_at', integrity.infrastructure.db.base.UTCDateTime(), nullable=False),
     sa.Column('id', sa.String(length=36), nullable=False),
-    sa.ForeignKeyConstraint(['evaluation_id'], ['evaluations.id'], name=op.f('fk_api_requests_evaluation_id_evaluations')),
+    sa.CheckConstraint('evaluation_id IS NULL OR organization_id IS NOT NULL', name=op.f('ck_api_requests_evaluation_requires_org')),
+    sa.ForeignKeyConstraint(['evaluation_id', 'organization_id'], ['evaluations.id', 'evaluations.organization_id'], name=op.f('fk_api_requests_evaluation_id_evaluations')),
     sa.ForeignKeyConstraint(['external_source_id'], ['external_sources.id'], name=op.f('fk_api_requests_external_source_id_external_sources')),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_api_requests_organization_id_organizations')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_api_requests')),
+    sa.UniqueConstraint('id', 'organization_id', name=op.f('uq_api_requests_id_organization_id')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     with op.batch_alter_table('api_requests', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_api_requests_evaluation_id'), ['evaluation_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_api_requests_external_source_id_request_fingerprint'), ['external_source_id', 'request_fingerprint'], unique=False)
         batch_op.create_index(batch_op.f('ix_api_requests_organization_id_requested_at'), ['organization_id', 'requested_at'], unique=False)
 
@@ -260,11 +274,12 @@ def upgrade() -> None:
     sa.Column('stage_name', sa.String(length=64), nullable=False),
     sa.Column('sequence', sa.Integer(), nullable=False),
     sa.Column('engine_version_id', sa.String(length=36), nullable=True),
-    sa.Column('status', sa.Enum('pending', 'running', 'succeeded', 'skipped', 'failed', name='stagestatus', native_enum=False, length=32), nullable=False),
+    sa.Column('status', sa.Enum('pending', 'running', 'succeeded', 'skipped', 'failed', 'cancelled', name='stagestatus', native_enum=False, length=32), nullable=False),
     sa.Column('attempt', sa.Integer(), nullable=False),
     sa.Column('max_attempts', sa.Integer(), nullable=False),
     sa.Column('lease_owner', sa.String(length=64), nullable=True),
     sa.Column('lease_expires_at', integrity.infrastructure.db.base.UTCDateTime(), nullable=True),
+    sa.Column('not_before', integrity.infrastructure.db.base.UTCDateTime(), nullable=True),
     sa.Column('started_at', integrity.infrastructure.db.base.UTCDateTime(), nullable=True),
     sa.Column('finished_at', integrity.infrastructure.db.base.UTCDateTime(), nullable=True),
     sa.Column('error_code', sa.String(length=64), nullable=True),
@@ -274,13 +289,17 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['evaluation_id', 'organization_id'], ['evaluations.id', 'evaluations.organization_id'], name=op.f('fk_evaluation_stages_evaluation_id_evaluations')),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_evaluation_stages_organization_id_organizations')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_evaluation_stages')),
+    sa.UniqueConstraint('evaluation_id', 'sequence', name=op.f('uq_evaluation_stages_evaluation_id_sequence')),
     sa.UniqueConstraint('evaluation_id', 'stage_name', name=op.f('uq_evaluation_stages_evaluation_id_stage_name')),
+    sa.UniqueConstraint('id', 'evaluation_id', 'organization_id', name=op.f('uq_evaluation_stages_id_evaluation_id_organization_id')),
     sa.UniqueConstraint('id', 'organization_id', name=op.f('uq_evaluation_stages_id_organization_id')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     with op.batch_alter_table('evaluation_stages', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_evaluation_stages_status_lease_expires_at'), ['status', 'lease_expires_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_evaluation_stages_organization_id'), ['organization_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_evaluation_stages_status_not_before_lease_expires_at'), ['status', 'not_before', 'lease_expires_at'], unique=False)
 
     op.create_table('reports',
     sa.Column('organization_id', sa.String(length=36), nullable=False),
@@ -296,22 +315,27 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['evaluation_id', 'organization_id'], ['evaluations.id', 'evaluations.organization_id'], name=op.f('fk_reports_evaluation_id_evaluations')),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_reports_organization_id_organizations')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_reports')),
+    sa.UniqueConstraint('id', 'evaluation_id', 'organization_id', name=op.f('uq_reports_id_evaluation_id_organization_id')),
     sa.UniqueConstraint('id', 'organization_id', name=op.f('uq_reports_id_organization_id')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     with op.batch_alter_table('reports', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_reports_evaluation_id_generated_at'), ['evaluation_id', 'generated_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_reports_organization_id'), ['organization_id'], unique=False)
 
     op.create_table('certificates',
     sa.Column('organization_id', sa.String(length=36), nullable=False),
     sa.Column('evaluation_id', sa.String(length=36), nullable=False),
+    sa.Column('document_version_id', sa.String(length=36), nullable=False),
     sa.Column('report_id', sa.String(length=36), nullable=True),
     sa.Column('status', sa.Enum('incomplete', 'processing', 'requires_review', 'requires_corrections', 'eligible_for_certification', 'certified', 'revoked', 'failed', name='certificatestatus', native_enum=False, length=32), nullable=False),
     sa.Column('verification_code', sa.String(length=32), nullable=False),
     sa.Column('document_content_sha256', sa.String(length=64), nullable=False),
     sa.Column('criteria_profile', sa.String(length=64), nullable=False),
     sa.Column('criteria_version', sa.String(length=32), nullable=False),
+    sa.Column('criteria_sha256', sa.String(length=64), nullable=False),
     sa.Column('signature', sa.String(length=1024), nullable=True),
     sa.Column('signing_key_id', sa.String(length=64), nullable=True),
     sa.Column('issued_at', integrity.infrastructure.db.base.UTCDateTime(), nullable=True),
@@ -321,16 +345,21 @@ def upgrade() -> None:
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.CheckConstraint("status <> 'certified' OR (issued_at IS NOT NULL AND report_id IS NOT NULL)", name=op.f('ck_certificates_certified_requires_issue_and_report')),
     sa.CheckConstraint("status <> 'revoked' OR revoked_at IS NOT NULL", name=op.f('ck_certificates_revoked_requires_timestamp')),
-    sa.ForeignKeyConstraint(['evaluation_id', 'organization_id'], ['evaluations.id', 'evaluations.organization_id'], name=op.f('fk_certificates_evaluation_id_evaluations')),
+    sa.ForeignKeyConstraint(['document_version_id', 'organization_id', 'document_content_sha256'], ['document_versions.id', 'document_versions.organization_id', 'document_versions.content_sha256'], name=op.f('fk_certificates_document_version_id_document_versions')),
+    sa.ForeignKeyConstraint(['evaluation_id', 'document_version_id', 'organization_id'], ['evaluations.id', 'evaluations.document_version_id', 'evaluations.organization_id'], name=op.f('fk_certificates_evaluation_id_evaluations')),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_certificates_organization_id_organizations')),
-    sa.ForeignKeyConstraint(['report_id', 'organization_id'], ['reports.id', 'reports.organization_id'], name=op.f('fk_certificates_report_id_reports')),
+    sa.ForeignKeyConstraint(['report_id', 'evaluation_id', 'organization_id'], ['reports.id', 'reports.evaluation_id', 'reports.organization_id'], name=op.f('fk_certificates_report_id_reports')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_certificates')),
     sa.UniqueConstraint('evaluation_id', name=op.f('uq_certificates_evaluation_id')),
     sa.UniqueConstraint('id', 'organization_id', name=op.f('uq_certificates_id_organization_id')),
     sa.UniqueConstraint('verification_code', name=op.f('uq_certificates_verification_code')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
+    with op.batch_alter_table('certificates', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_certificates_organization_id'), ['organization_id'], unique=False)
+
     op.create_table('evaluation_results',
     sa.Column('organization_id', sa.String(length=36), nullable=False),
     sa.Column('evaluation_id', sa.String(length=36), nullable=False),
@@ -345,13 +374,17 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['engine_version_id'], ['engine_versions.id'], name=op.f('fk_evaluation_results_engine_version_id_engine_versions')),
     sa.ForeignKeyConstraint(['evaluation_id', 'organization_id'], ['evaluations.id', 'evaluations.organization_id'], name=op.f('fk_evaluation_results_evaluation_id_evaluations')),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_evaluation_results_organization_id_organizations')),
-    sa.ForeignKeyConstraint(['stage_id', 'organization_id'], ['evaluation_stages.id', 'evaluation_stages.organization_id'], name=op.f('fk_evaluation_results_stage_id_evaluation_stages')),
+    sa.ForeignKeyConstraint(['stage_id', 'evaluation_id', 'organization_id'], ['evaluation_stages.id', 'evaluation_stages.evaluation_id', 'evaluation_stages.organization_id'], name=op.f('fk_evaluation_results_stage_id_evaluation_stages')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_evaluation_results')),
     sa.UniqueConstraint('id', 'organization_id', name=op.f('uq_evaluation_results_id_organization_id')),
     sa.UniqueConstraint('stage_id', name=op.f('uq_evaluation_results_stage_id')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
+    with op.batch_alter_table('evaluation_results', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_evaluation_results_organization_id'), ['organization_id'], unique=False)
+
     op.create_table('findings',
     sa.Column('organization_id', sa.String(length=36), nullable=False),
     sa.Column('evaluation_id', sa.String(length=36), nullable=False),
@@ -375,14 +408,16 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['engine_version_id'], ['engine_versions.id'], name=op.f('fk_findings_engine_version_id_engine_versions')),
     sa.ForeignKeyConstraint(['evaluation_id', 'organization_id'], ['evaluations.id', 'evaluations.organization_id'], name=op.f('fk_findings_evaluation_id_evaluations')),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_findings_organization_id_organizations')),
-    sa.ForeignKeyConstraint(['stage_id', 'organization_id'], ['evaluation_stages.id', 'evaluation_stages.organization_id'], name=op.f('fk_findings_stage_id_evaluation_stages')),
+    sa.ForeignKeyConstraint(['stage_id', 'evaluation_id', 'organization_id'], ['evaluation_stages.id', 'evaluation_stages.evaluation_id', 'evaluation_stages.organization_id'], name=op.f('fk_findings_stage_id_evaluation_stages')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_findings')),
     sa.UniqueConstraint('id', 'organization_id', name=op.f('uq_findings_id_organization_id')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     with op.batch_alter_table('findings', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_findings_evaluation_id_severity'), ['evaluation_id', 'severity'], unique=False)
+        batch_op.create_index(batch_op.f('ix_findings_organization_id'), ['organization_id'], unique=False)
 
     op.create_table('evidence',
     sa.Column('organization_id', sa.String(length=36), nullable=False),
@@ -399,7 +434,7 @@ def upgrade() -> None:
     sa.Column('retrieved_at', integrity.infrastructure.db.base.UTCDateTime(), nullable=True),
     sa.Column('created_at', integrity.infrastructure.db.base.UTCDateTime(), nullable=False),
     sa.Column('id', sa.String(length=36), nullable=False),
-    sa.ForeignKeyConstraint(['api_request_id'], ['api_requests.id'], name=op.f('fk_evidence_api_request_id_api_requests')),
+    sa.ForeignKeyConstraint(['api_request_id', 'organization_id'], ['api_requests.id', 'api_requests.organization_id'], name=op.f('fk_evidence_api_request_id_api_requests')),
     sa.ForeignKeyConstraint(['document_version_id', 'organization_id'], ['document_versions.id', 'document_versions.organization_id'], name=op.f('fk_evidence_document_version_id_document_versions')),
     sa.ForeignKeyConstraint(['external_source_id'], ['external_sources.id'], name=op.f('fk_evidence_external_source_id_external_sources')),
     sa.ForeignKeyConstraint(['finding_id', 'organization_id'], ['findings.id', 'findings.organization_id'], name=op.f('fk_evidence_finding_id_findings')),
@@ -407,12 +442,13 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_evidence')),
     sa.UniqueConstraint('id', 'organization_id', name=op.f('uq_evidence_id_organization_id')),
     mysql_charset='utf8mb4',
+    mysql_collate='utf8mb4_bin',
     mysql_engine='InnoDB'
     )
     with op.batch_alter_table('evidence', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_evidence_finding_id'), ['finding_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_evidence_organization_id'), ['organization_id'], unique=False)
 
-    # ### end Alembic commands ###
 
 
 def downgrade() -> None:

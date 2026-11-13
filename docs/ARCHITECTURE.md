@@ -1,6 +1,6 @@
 # Arquitectura — XplagiaX Integrity
 
-Estado: **propuesta de la Fase 1, pendiente de auditoría independiente (Fase 2).**
+Estado: **Fase 1 auditada y corregida** (`AUDIT_PHASE1.md`, `RECONCILIATION_PHASE3.md`).
 Las secciones marcadas **[DISEÑO]** todavía no tienen código. Las marcadas **[IMPLEMENTADO]** tienen código y pruebas.
 
 ## 1. Contexto y responsabilidades
@@ -46,6 +46,7 @@ integrity/
 ├── core/                          transversal: ids, errores, logging, contexto de petición
 ├── domain/                        Python puro: vocabularios, estados, inventario de capacidades
 ├── security/                      claves de API, contexto de organización, auditoría
+├── application/                   casos de uso sin Flask; reciben la sesión y no confirman (hoy: alta de organizaciones y usuarios)
 ├── infrastructure/db/             SQLAlchemy: modelos, sesión, helpers por organización, versión de esquema
 ├── migrations/                    Alembic
 └── api/v1/                        Flask: health, version, auth/context
@@ -54,7 +55,6 @@ integrity/
 Capas previstas, que se crean **solo cuando tengan código**:
 
 ```text
-├── application/                   casos de uso: create_evaluation, ingest_document, issue_certificate…
 ├── engines/<engine>/              motores compartidos (puros respecto a I/O siempre que sea posible)
 ├── products/{patent_integrity,research_paper,dissertation}/
 │                                  workflow (lista de etapas), taxonomía de hallazgos, reglas, esquema del informe
@@ -111,7 +111,7 @@ Etapas por producto (orden previsto; cada una apunta a una versión de motor):
 
 ## 5. Contratos de datos
 
-- **Entrada:** JSON de extracción v0 (API_CONTRACTS.md §3). [DISEÑO — depende de appcli2]
+- **Entrada:** documento de entrada v1, basado en la extracción real de appcli2 (API_CONTRACTS.md §3). [DISEÑO — pendiente de acordar]
 - **Salida de un motor:** cada motor devuelve `EngineOutput{engine, version, config_sha256, payload, findings[], limitations[]}`. Los hallazgos llevan `nature` (`FindingNature`), que es lo que impide presentar una similitud o un indicador estadístico como si fuera un hecho. [DISEÑO; los enums ya existen]
 - **Informe:** JSON versionado (`schema_version`), generado **solo** a partir de las filas guardadas, sin recalcular nada. Así el informe es reproducible a partir de la base de datos. [DISEÑO]
 
@@ -128,6 +128,8 @@ Etapas por producto (orden previsto; cada una apunta a una versión de motor):
 - **Aislamiento por organización en la base de datos:** claves foráneas compuestas `(x_id, organization_id)` → `(id, organization_id)` en todas las relaciones entre tablas de una organización. Un error en la aplicación no puede enlazar la evaluación de una organización con el documento de otra. Probado en SQLite y en MariaDB.
 - Pools de conexión pequeños: 5 + 2 por proceso. Total ≈ procesos × 7.
 - La API no importa Alembic: la cabecera de esquema esperada es una constante que un test compara con la cabecera real (ahorra ~10 MB de RSS por worker, PERFORMANCE.md).
+
+**Política de transacciones:** los casos de uso de `application/` reciben la sesión y no confirman; el endpoint (o el worker) confirma una vez al final. Un error revierte todo en el cierre del contexto.
 
 ## 8. Estrategia de pruebas
 
@@ -151,6 +153,7 @@ Las pruebas nunca llaman a proveedores reales. Las pruebas en vivo de los adapta
 | SQLAlchemy 2.0 | Exigido; usable desde workers sin contexto de Flask | Flask-SQLAlchemy (añade acoplamiento a Flask y no ahorra nada) |
 | Alembic 1.16 | Migraciones; solo se carga en CLI y tests | Flask-Migrate (un envoltorio más) |
 | PyMySQL 1.1 | Driver de MySQL en Python puro, sin toolchain de C | mysqlclient (más rápido, pero necesita libmysqlclient; reconsiderar con mediciones) |
+| cryptography 46 | Lo exige PyMySQL para autenticarse en MySQL 8 (`caching_sha2_password`). Lo detectó el CI: con MariaDB no hacía falta | Usar `mysql_native_password` (obsoleto y desactivado por defecto en MySQL 8.4) |
 | gunicorn 23 (extra `server`) | Servidor WSGI de producción | — |
 | pytest 8 (dev) | Pruebas | — |
 
@@ -165,13 +168,18 @@ Las pruebas nunca llaman a proveedores reales. Las pruebas en vivo de los adapta
 | Errores centralizados | Implementado | `test_errors_and_context.py` |
 | Health live/ready (BD + versión de esquema), version | Implementado | `test_health.py` |
 | Autenticación de clientes de servicio + contexto de organización/usuario | Implementado | `test_auth.py` |
+| Alta de organizaciones y usuarios desde la plataforma | Implementado | `test_tenant_provisioning.py` |
+| Convenciones compartidas con la plataforma (hash de texto, organización personal) | Implementado | `test_tenant_provisioning.py` |
+| CI con MySQL 8.4 y build de la imagen | Implementado | `.github/workflows/ci.yml` |
 | CLI: create-org / create-user / create-client / revoke-client | Implementado | `test_constraints_and_cli.py` |
 | Modelo de datos (17 tablas) + migración 0001 | Implementado | `test_migrations.py`, `test_mysql_integration.py` |
-| Restricciones de aislamiento por organización | Implementado | `test_tenant_isolation.py` |
+| Restricciones de aislamiento y coherencia por organización | Implementado | `test_tenant_isolation.py`, `test_audit_regressions.py` |
 | Escritor de auditoría | Base inicial (solo lo usa el CLI) | `test_constraints_and_cli.py` |
 | Gestión de evidencias | Base inicial (esquema sí; nada genera evidencias todavía) | — |
 | Rate limiting, Valkey | Pendiente | — |
-| Ingestión, normalización | Pendiente (bloqueado por el contrato de appcli2) | — |
+| Ingestión: validación v1, idempotencia, versiones, almacenamiento comprimido, purga | Base inicial (contrato v1 sin confirmar por appcli2) | `test_documents.py`, `test_mysql_integration.py` |
+| Repositorios con filtro de organización obligatorio (`TenantScope`) | Implementado | `test_documents.py` |
+| Normalización con mapa de offsets | Base inicial (aún no la usa ningún motor) | `test_normalization.py` |
 | Todos los motores científicos | Pendiente / requiere investigación / requiere API externa | `domain/capabilities.py`, `GET /api/v1/version` |
 | Workers | Pendiente (ADR-0005) | — |
 | Informes, certificados, verificación | Pendiente (el esquema existe) | — |

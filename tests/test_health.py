@@ -45,6 +45,7 @@ def test_version_exposes_engine_maturity_honestly(client):
     assert len(names) == 13
     # Nothing scientific is claimed as implemented in the foundation phase.
     assert "implemented" not in names.values()
+    assert "environment" not in body  # not disclosed to unauthenticated callers
 
 
 def test_security_headers(client):

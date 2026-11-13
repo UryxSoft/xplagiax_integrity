@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, jsonify
 from sqlalchemy import text
 
 from integrity import API_VERSION, __version__
@@ -48,6 +48,5 @@ def register(bp: Blueprint) -> None:
             service="xplagiax-integrity",
             version=__version__,
             api_version=API_VERSION,
-            environment=current_app.config["XI_SETTINGS"].env,
             engines=as_public_list(),
         )

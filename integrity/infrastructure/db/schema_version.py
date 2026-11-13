@@ -5,4 +5,4 @@ Kept as a constant so the web process never imports Alembic at runtime
 drifts from the real head, so a new migration must bump it.
 """
 
-EXPECTED_SCHEMA_HEADS: frozenset[str] = frozenset({"0001"})
+EXPECTED_SCHEMA_HEADS: frozenset[str] = frozenset({"0002"})

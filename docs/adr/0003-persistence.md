@@ -11,5 +11,6 @@
 - PyMySQL (Python puro). Se pasaría a mysqlclient si el profiling muestra que el driver es un cuello de botella.
 
 ## Consecuencias
-- (+) Una consulta sin filtrar por organización aún puede *leer* de más (por eso existe `scoped_select` y se revisa en code review), pero ninguna escritura puede mezclar organizaciones.
+- (+) Una consulta sin filtrar por organización aún puede *leer* de más (por eso existe `scoped_select` y se revisa en code review). Las escrituras no pueden enlazar filas de organizaciones distintas en ninguna relación entre tablas de organización. La versión inicial dejaba dos enlaces sin cubrir (`api_requests` → `evaluations` y `evidence` → `api_requests`); la auditoría los detectó y se corrigieron.
+- Intercalación `utf8mb4_bin` en todas las tablas, para que las comparaciones se comporten igual en MySQL, MariaDB y SQLite.
 - (−) Cada tabla padre necesita un índice único extra `(id, organization_id)`. Coste pequeño.

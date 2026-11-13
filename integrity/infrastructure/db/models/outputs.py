@@ -7,7 +7,17 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from integrity.core.ids import utcnow
 from integrity.domain.enums import CertificateStatus, ReportFormat
-from integrity.infrastructure.db.base import ID, SHA256, TABLE_ARGS, Base, IdMixin, enum_col, tenant_fk, tenant_key
+from integrity.infrastructure.db.base import (
+    ID,
+    SHA256,
+    TABLE_ARGS,
+    Base,
+    IdMixin,
+    composite_fk,
+    enum_col,
+    tenant_fk,
+    tenant_key,
+)
 
 
 class Report(IdMixin, Base):
@@ -15,7 +25,10 @@ class Report(IdMixin, Base):
     __table_args__ = (
         tenant_key(),
         tenant_fk("evaluation_id", "evaluations"),
+        # Target of certificates' (report, evaluation, tenant) reference.
+        UniqueConstraint("id", "evaluation_id", "organization_id"),
         Index(None, "evaluation_id", "generated_at"),
+        Index(None, "organization_id"),
         TABLE_ARGS,
     )
 
@@ -37,8 +50,16 @@ class Certificate(IdMixin, Base):
     __tablename__ = "certificates"
     __table_args__ = (
         tenant_key(),
-        tenant_fk("evaluation_id", "evaluations"),
-        tenant_fk("report_id", "reports"),
+        # Audit finding A2: the three references below make the database itself
+        # guarantee that a certificate's report, document version and hash all
+        # belong to the one evaluation it certifies.
+        composite_fk(["evaluation_id", "document_version_id", "organization_id"], "evaluations",
+                     ["id", "document_version_id", "organization_id"]),
+        composite_fk(["report_id", "evaluation_id", "organization_id"], "reports",
+                     ["id", "evaluation_id", "organization_id"]),
+        composite_fk(["document_version_id", "organization_id", "document_content_sha256"], "document_versions",
+                     ["id", "organization_id", "content_sha256"]),
+        Index(None, "organization_id"),
         UniqueConstraint("verification_code"),
         UniqueConstraint("evaluation_id"),
         CheckConstraint(
@@ -51,6 +72,7 @@ class Certificate(IdMixin, Base):
 
     organization_id: Mapped[str] = mapped_column(ID, ForeignKey("organizations.id"))
     evaluation_id: Mapped[str] = mapped_column(ID)
+    document_version_id: Mapped[str] = mapped_column(ID)
     report_id: Mapped[str | None] = mapped_column(ID, default=None)
     status: Mapped[CertificateStatus] = mapped_column(enum_col(CertificateStatus), default=CertificateStatus.INCOMPLETE)
     # Public, random, non-sequential. Verification endpoint reveals minimal data.
@@ -58,6 +80,9 @@ class Certificate(IdMixin, Base):
     document_content_sha256: Mapped[str] = mapped_column(SHA256)
     criteria_profile: Mapped[str] = mapped_column(String(64))
     criteria_version: Mapped[str] = mapped_column(String(32))
+    # SHA-256 of the exact criteria definition applied (frozen in
+    # evaluations.config_snapshot), so the rules behind a certificate are auditable.
+    criteria_sha256: Mapped[str] = mapped_column(SHA256)
     # Signature scheme pending audit (see ROADMAP stage 7). Nullable until then.
     signature: Mapped[str | None] = mapped_column(String(1024), default=None)
     signing_key_id: Mapped[str | None] = mapped_column(String(64), default=None)

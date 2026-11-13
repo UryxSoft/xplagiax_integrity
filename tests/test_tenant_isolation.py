@@ -16,7 +16,7 @@ def _doc_version(s, org_id):
     d = Document(organization_id=org_id, title="t")
     s.add(d)
     s.flush()
-    v = DocumentVersion(organization_id=org_id, document_id=d.id, version_number=1,
+    v = DocumentVersion(idempotency_key=__import__("os").urandom(8).hex(), organization_id=org_id, document_id=d.id, version_number=1,
                         source_kind=SourceKind.UPSTREAM_EXTRACTION, content_sha256=SHA)
     s.add(v)
     s.flush()
@@ -41,7 +41,7 @@ def test_version_cannot_attach_to_other_tenants_document(app, factory):
         db_id = d_b.id
     with pytest.raises(IntegrityError):
         with session_scope(app) as s:
-            s.add(DocumentVersion(organization_id=a, document_id=db_id, version_number=2,
+            s.add(DocumentVersion(idempotency_key=__import__("os").urandom(8).hex(), organization_id=a, document_id=db_id, version_number=2,
                                   source_kind=SourceKind.UPSTREAM_EXTRACTION, content_sha256=SHA))
 
 

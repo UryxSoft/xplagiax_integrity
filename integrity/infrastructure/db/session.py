@@ -13,7 +13,7 @@ from integrity.config import Settings
 def build_engine(settings: Settings) -> Engine:
     url = settings.database_url
     if url.startswith("sqlite"):
-        engine = create_engine(url, future=True)
+        engine = create_engine(url, future=True, hide_parameters=True)
 
         @event.listens_for(engine, "connect")
         def _sqlite_fk_on(dbapi_conn, _record):  # composite tenant FKs must be enforced in tests too
@@ -29,7 +29,15 @@ def build_engine(settings: Settings) -> Engine:
         max_overflow=settings.db_max_overflow,
         pool_recycle=settings.db_pool_recycle_s,
         pool_pre_ping=True,
-        connect_args={"connect_timeout": settings.db_connect_timeout_s, "charset": "utf8mb4"},
+        # Never put bound parameters (document titles, excerpts...) in exception
+        # messages: they end up in logs (audit finding A3).
+        hide_parameters=True,
+        connect_args={
+            "connect_timeout": settings.db_connect_timeout_s,
+            "read_timeout": settings.db_io_timeout_s,
+            "write_timeout": settings.db_io_timeout_s,
+            "charset": "utf8mb4",
+        },
     )
 
 

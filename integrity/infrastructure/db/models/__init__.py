@@ -2,7 +2,7 @@
 
 from integrity.infrastructure.db.base import Base
 from integrity.infrastructure.db.models.audit import AuditEvent
-from integrity.infrastructure.db.models.documents import Document, DocumentVersion, Project
+from integrity.infrastructure.db.models.documents import Document, DocumentContent, DocumentVersion, Project
 from integrity.infrastructure.db.models.evaluations import (
     EngineVersion,
     Evaluation,
@@ -18,7 +18,7 @@ from integrity.infrastructure.db.models.tenancy import Organization, ServiceClie
 __all__ = [
     "Base",
     "Organization", "User", "ServiceClient",
-    "Project", "Document", "DocumentVersion",
+    "Project", "Document", "DocumentVersion", "DocumentContent",
     "EngineVersion", "Evaluation", "EvaluationStage", "EvaluationResult", "Finding", "Evidence",
     "ExternalSource", "ApiRequest",
     "Report", "Certificate",

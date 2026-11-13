@@ -51,7 +51,7 @@ def test_ready_and_tenant_fk_on_mysql(mysql_app):
         d = Document(organization_id=b.id)
         s.add(d)
         s.flush()
-        v = DocumentVersion(organization_id=b.id, document_id=d.id, version_number=1,
+        v = DocumentVersion(idempotency_key=__import__("os").urandom(8).hex(), organization_id=b.id, document_id=d.id, version_number=1,
                             source_kind=SourceKind.UPSTREAM_EXTRACTION, content_sha256=SHA)
         s.add(v)
         s.flush()
@@ -74,3 +74,70 @@ def test_datetime_microseconds_and_tz_roundtrip(mysql_app):
     with session_scope(mysql_app) as s:
         got = s.get(Organization, oid).created_at
     assert got == now and got.tzinfo is not None
+
+
+def test_concurrent_ingestion_with_same_key_creates_one_version(mysql_app):
+    """Real InnoDB row locking: N parallel identical requests -> exactly one version."""
+    import threading
+
+    from sqlalchemy import func, select
+
+    from integrity.domain.enums import ClientScope
+    from integrity.infrastructure.db.models import DocumentVersion, ServiceClient
+    from integrity.security.api_keys import generate_key
+    from tests.test_documents import payload
+
+    key = generate_key(TEST_PEPPER)
+    with session_scope(mysql_app) as s:
+        s.add(Organization(external_ref="user:1", name="u1"))
+        s.add(ServiceClient(name="c", key_prefix=key.prefix, key_hash=key.digest, scope=ClientScope.PLATFORM))
+    headers = {"Authorization": f"Bearer {key.plaintext}", "X-Integrity-Org": "user:1",
+               "Idempotency-Key": "race-key-mysql-1"}
+    statuses: list[int] = []
+    lock = threading.Lock()
+
+    def go():
+        r = mysql_app.test_client().post("/api/v1/documents", json=payload(), headers=headers)
+        with lock:
+            statuses.append(r.status_code)
+
+    threads = [threading.Thread(target=go) for _ in range(8)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert statuses.count(201) == 1, statuses
+    assert set(statuses) <= {200, 201}, statuses
+    with session_scope(mysql_app) as s:
+        assert s.scalar(select(func.count()).select_from(DocumentVersion)) == 1
+
+
+def test_concurrent_tenant_provisioning_is_idempotent(mysql_app):
+    import threading
+
+    from sqlalchemy import func, select
+
+    from integrity.domain.enums import ClientScope
+    from integrity.infrastructure.db.models import ServiceClient, User
+    from integrity.security.api_keys import generate_key
+
+    key = generate_key(TEST_PEPPER)
+    with session_scope(mysql_app) as s:
+        s.add(ServiceClient(name="c", key_prefix=key.prefix, key_hash=key.digest, scope=ClientScope.PLATFORM))
+    h = {"Authorization": f"Bearer {key.plaintext}"}
+    statuses: list[int] = []
+    lock = threading.Lock()
+
+    def go(url, body):
+        r = mysql_app.test_client().put(url, json=body, headers=h)
+        with lock:
+            statuses.append(r.status_code)
+
+    for url, body in (("/api/v1/organizations/user:7", {"name": "u7"}),
+                      ("/api/v1/organizations/user:7/users/7", {})):
+        statuses.clear()
+        threads = [threading.Thread(target=go, args=(url, body)) for _ in range(8)]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+        assert statuses.count(201) == 1 and set(statuses) <= {200, 201}, (url, statuses)
+    with session_scope(mysql_app) as s:
+        assert s.scalar(select(func.count()).select_from(Organization)) == 1
+        assert s.scalar(select(func.count()).select_from(User)) == 1

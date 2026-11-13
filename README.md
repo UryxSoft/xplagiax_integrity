@@ -3,7 +3,7 @@ An AI-powered document integrity platform by XplagiaX, bringing together patent 
 
 ## Technical status & quickstart
 
-> **Status: Phase 1 foundation.** The service skeleton, security base, data model and migrations exist and are tested.
+> **Status: Phase 1 foundation, audited** ([audit](docs/AUDIT_PHASE1.md), [reconciliation](docs/RECONCILIATION_PHASE3.md)). The service skeleton, security base, data model and migrations exist and are tested.
 > **No scientific engine is implemented yet.** `GET /api/v1/version` lists each engine's real maturity.
 > Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md) · Audit: [docs/INITIAL_AUDIT.md](docs/INITIAL_AUDIT.md)
 
@@ -12,7 +12,7 @@ Requirements: Python ≥ 3.12, MySQL 8 (SQLite is accepted outside production).
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt && pip install -e . --no-deps
-export XI_DATABASE_URL=sqlite:///./instance/dev.sqlite3 && mkdir -p instance
+export XI_ENV=development XI_DATABASE_URL=sqlite:///./instance/dev.sqlite3 && mkdir -p instance
 alembic upgrade head
 python -m pytest
 flask --app integrity.app:create_app integrity create-client --name local --scope platform
@@ -131,6 +131,8 @@ This approach provides clear product boundaries without introducing unnecessary 
 
 ### Proposed project structure
 
+> **Superseded:** the tree below was the initial proposal. The implemented layout is the `integrity/` package described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §3.
+
 ```text
 xplagiax-integrity/
 │
@@ -187,7 +189,7 @@ Potential technology components include:
 
 - **Backend:** Python and Flask.
 - **Database:** MySQL and SQLAlchemy.
-- **Caching and queues:** Redis.
+- **Caching and rate limiting:** Valkey, only when needed. Background work uses a MySQL-backed stage queue ([ADR-0005](docs/adr/0005-background-work.md)).
 - **Vector search:** Qdrant.
 - **Document storage:** SeaweedFS or compatible object storage.
 - **Deployment:** Docker.
@@ -358,6 +360,8 @@ Este enfoque permite mantener límites claros entre productos sin introducir com
 
 ### Estructura propuesta
 
+> **Sustituida:** el árbol siguiente fue la propuesta inicial. La estructura implementada es el paquete `integrity/` descrito en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §3.
+
 ```text
 xplagiax-integrity/
 │
@@ -414,7 +418,7 @@ Entre las tecnologías previstas se encuentran:
 
 - **Backend:** Python y Flask.
 - **Base de datos:** MySQL y SQLAlchemy.
-- **Caché y colas:** Redis.
+- **Caché y rate limiting:** Valkey, solo cuando haga falta. El trabajo en segundo plano usa una cola de etapas en MySQL ([ADR-0005](docs/adr/0005-background-work.md)).
 - **Búsqueda vectorial:** Qdrant.
 - **Almacenamiento documental:** SeaweedFS o almacenamiento de objetos compatible.
 - **Despliegue:** Docker.

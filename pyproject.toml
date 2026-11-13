@@ -15,6 +15,8 @@ dependencies = [
     "SQLAlchemy>=2.0.40,<2.1",
     "alembic>=1.16,<1.17",
     "PyMySQL>=1.1,<1.2",
+    # Required by PyMySQL for MySQL 8 authentication (caching_sha2_password).
+    "cryptography>=46,<47",
 ]
 
 [project.optional-dependencies]

@@ -8,7 +8,7 @@ Manuscritos sin publicar, tesis, **invenciones sin presentar** (su divulgación 
 
 | Control | Estado | Dónde |
 |---|---|---|
-| Configuración insegura bloqueada en producción (pepper, URL de MySQL, sin DEBUG) | Implementado | `config.py`, `test_config.py` |
+| Configuración insegura bloqueada en producción (pepper, URL de MySQL, sin DEBUG); `XI_ENV` obligatoria | Implementado | `config.py`, `test_config.py` |
 | Claves de servicio: 256 bits aleatorios, guardadas como HMAC-SHA256 con pepper, comparación en tiempo constante, se muestran una sola vez | Implementado | `security/api_keys.py`, `cli.py` |
 | Comparación HMAC también con prefijos desconocidos (tiempo de respuesta uniforme) | Implementado | `security/auth.py` |
 | Revocación y desactivación de clientes | Implementado | `revoke-client`, `test_auth.py` |
@@ -18,16 +18,22 @@ Manuscritos sin publicar, tesis, **invenciones sin presentar** (su divulgación 
 | Sin deduplicación entre organizaciones | Implementado (diseño de índices) | DATA_MODEL §3 |
 | Límite de tamaño de petición (16 MiB por defecto) | Implementado | `MAX_CONTENT_LENGTH`, `test_errors_and_context.py` |
 | Los 500 no revelan detalles internos | Implementado | `core/errors.py` |
+| Los errores de BD no incluyen los parámetros SQL (`hide_parameters`) | Implementado | `db/session.py`, `test_audit_regressions.py` |
+| Tiempo límite de lectura y escritura en la BD | Implementado | `XI_DB_IO_TIMEOUT_S` |
+| Alta de organizaciones y usuarios solo para clientes de plataforma, auditada | Implementado | `api/v1/tenants.py` |
 | Redacción de claves sensibles en logs; el access log registra la ruta sin query string; el contenido de los documentos nunca se registra | Implementado (por convención para el contenido) | `core/logging.py` |
 | `X-Request-ID` saneado (sin inyección en logs) | Implementado | `core/request_context.py` |
 | Cabeceras: `nosniff`, `no-store`, `no-referrer` | Implementado | `app.py` |
 | Contenedor sin root | Escrito, sin construir | `Dockerfile` |
-| Registro de auditoría (solo inserción) | Base inicial: solo eventos del CLI | `security/audit.py` |
+| Registro de auditoría (solo inserción) | Base inicial: CLI y alta de organizaciones y usuarios. Los fallos de autenticación van solo al log | `security/audit.py` |
 | Rate limiting por cliente y por organización (Valkey) | Pendiente — Etapa 1b | — |
-| Validación del esquema de ingestión, límites de bloques | Pendiente — Etapa 2 | API_CONTRACTS §3 |
+| Validación del documento de entrada, límites de tamaño y de párrafos | Implementado | `domain/ingestion_contract.py`, `test_documents.py` |
+| Visibilidad de documentos por rol; documentos ajenos responden 404 | Implementado | `application/documents.py`, `test_documents.py` |
+| Integridad del contenido guardado (SHA-256 del blob comprobado al leer) | Implementado | `infrastructure/content_store.py` |
 | Validación de archivos subidos (MIME real, bombas ZIP, PDF malformados) | Pendiente — solo si se habilita `local_upload` | ADR-0002 |
 | Protección SSRF en adaptadores (lista de hosts permitidos, sin redirecciones a IPs privadas) | Pendiente — Etapa 3 | — |
-| Retención y purga | Pendiente — Etapa 2 | DATA_MODEL §5 |
+| Purga de contenido bajo petición, auditada | Implementado | `DELETE /documents/{id}` |
+| Purga automática por retención | Pendiente | DATA_MODEL §5 |
 | Firma de certificados | Pendiente — Etapa 7 | — |
 
 **Path traversal:** el servicio nunca construye rutas a partir de datos de entrada. `original_filename` es solo informativo y el almacenamiento usa `storage_ref` opacos (SeaweedFS). Cuando se implemente la subida local, los nombres de archivo no podrán llegar al sistema de archivos.
@@ -49,11 +55,12 @@ Que appcli2 firme por petición un token de corta duración (`org`, `user`, `aud
 ## 4. Secretos
 
 - Solo desde variables de entorno, nunca en el repositorio. `.gitignore` bloquea `.env`, `*_api_keys*.txt`, `*.pem` y `*.key`.
+- **El repositorio figura como público en GitHub.** Si no es intencionado, hay que hacerlo privado.
 - **Incidente abierto:** hay credenciales reales en `xplagiax_pantents_api_keys.txt` (INITIAL_AUDIT §2). Hay que rotarlas.
 - Rotar `XI_API_KEY_PEPPER` invalida todas las claves de servicio. Está previsto soportar dos peppers a la vez para rotarlo sin cortes (Etapa 1b).
 
 ## 5. Permisos de la base de datos (producción)
 
-- El usuario de la aplicación tiene `SELECT, INSERT, UPDATE` en las tablas de negocio y `SELECT, INSERT` en `audit_events`, sin `DELETE` ni DDL.
+- El usuario de la aplicación tiene `SELECT, INSERT, UPDATE` en las tablas de negocio, `DELETE` **solo** en `document_contents` (purga) y `SELECT, INSERT` en `audit_events`. Sin DDL.
 - Las migraciones se ejecutan con otro usuario, desde CI o desde un paso de despliegue.
 - La purga por retención la hace un proceso con su propio usuario y su propio registro de auditoría.

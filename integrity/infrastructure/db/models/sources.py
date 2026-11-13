@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from integrity.core.ids import utcnow
 from integrity.domain.enums import ApiOutcome, SourceAuthorization
-from integrity.infrastructure.db.base import ID, SHA256, TABLE_ARGS, Base, IdMixin, enum_col
+from integrity.infrastructure.db.base import ID, SHA256, TABLE_ARGS, Base, IdMixin, enum_col, tenant_fk, tenant_key
 
 
 class ExternalSource(IdMixin, Base):
@@ -55,15 +55,18 @@ class ApiRequest(IdMixin, Base):
 
     __tablename__ = "api_requests"
     __table_args__ = (
+        tenant_key(),
+        # A call made for an evaluation belongs to that evaluation's tenant (audit finding A1).
+        tenant_fk("evaluation_id", "evaluations"),
+        CheckConstraint("evaluation_id IS NULL OR organization_id IS NOT NULL", name="evaluation_requires_org"),
         Index(None, "organization_id", "requested_at"),
-        Index(None, "evaluation_id"),
         Index(None, "external_source_id", "request_fingerprint"),
         TABLE_ARGS,
     )
 
     # Nullable: provider health checks are not tenant-owned.
     organization_id: Mapped[str | None] = mapped_column(ID, ForeignKey("organizations.id"), default=None)
-    evaluation_id: Mapped[str | None] = mapped_column(ID, ForeignKey("evaluations.id"), default=None)
+    evaluation_id: Mapped[str | None] = mapped_column(ID, default=None)
     external_source_id: Mapped[str] = mapped_column(ID, ForeignKey("external_sources.id"))
     operation: Mapped[str] = mapped_column(String(64))       # e.g. "doi_lookup", "published_data_search"
     request_fingerprint: Mapped[str] = mapped_column(SHA256)
