@@ -1,0 +1,10 @@
+.git
+.venv
+instance
+tests
+docs
+*.md
+*.txt
+!requirements.txt
+.env
+.env.*

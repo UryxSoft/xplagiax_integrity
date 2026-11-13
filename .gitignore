@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Local runtime
+instance/
+*.sqlite3
+*.log
+
+# Secrets — never commit. Use a secret manager / environment variables.
+.env
+.env.*
+!.env.example
+*_api_keys*.txt
+*.pem
+*.key
+secrets/
