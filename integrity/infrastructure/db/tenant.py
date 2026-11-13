@@ -1,8 +1,7 @@
 """Tenant-scoped query helpers.
 
-Data-access code for tenant-owned tables must go through ``scoped_select``
-(or add the same predicate) so that forgetting the organisation filter is a
-visible deviation in review, not a silent default.
+Prefer :class:`integrity.infrastructure.db.repositories.TenantScope`, which
+binds the organisation once. ``scoped_select`` remains for one-off queries.
 """
 
 from __future__ import annotations

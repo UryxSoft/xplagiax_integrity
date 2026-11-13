@@ -87,7 +87,7 @@ def _evaluation(s, org, sha=SHA):
     d = Document(organization_id=org)
     s.add(d)
     s.flush()
-    v = DocumentVersion(organization_id=org, document_id=d.id, version_number=1,
+    v = DocumentVersion(idempotency_key=__import__("os").urandom(8).hex(), organization_id=org, document_id=d.id, version_number=1,
                         source_kind=SourceKind.UPSTREAM_EXTRACTION, content_sha256=sha)
     s.add(v)
     s.flush()

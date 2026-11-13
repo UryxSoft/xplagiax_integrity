@@ -22,7 +22,25 @@ Cabeceras transversales:
 | PUT | `/organizations/{ref}` | sí, **solo cliente de plataforma** | Cuerpo `{"name"}`. Idempotente: `201` si la crea, `200` si ya existía. Errores: 401, 403, 422 |
 | PUT | `/organizations/{ref}/users/{ref}` | sí, **solo cliente de plataforma** | Cuerpo `{"role"?}` (`member` por defecto). Idempotente; actualiza el rol si cambia. Errores: 401, 403, 404, 422 |
 
+| POST | `/documents` | sí, organización obligatoria | Cuerpo: documento v1 (§3). Cabecera `Idempotency-Key` obligatoria. `201` creado, `200` repetición idéntica. Errores: 401, 403, 409 (clave reutilizada con otro contenido), 413, 422 (`invalid_document` con `details`, o `insufficient_content`) |
+| POST | `/documents/{id}/versions` | sí | Igual que el anterior; crea la versión siguiente. Errores adicionales: 404, 409 (`concurrent_modification`), 410 (documento borrado) |
+| GET | `/documents/{id}` | sí | Metadatos del documento y de sus versiones. **Nunca devuelve el texto** |
+| DELETE | `/documents/{id}` | sí | Purga el contenido de todas las versiones. Conserva hashes, metadatos y auditoría. Idempotente |
+
 La plataforma no tiene organizaciones: cada usuario usa la referencia `user:<id>` (INTEGRATION_XPLAGIAX §2).
+
+**Visibilidad de documentos** según el usuario afirmado en `X-Integrity-User`:
+
+| Usuario | Leer | Añadir versión | Borrar |
+|---|---|---|---|
+| Ninguno (la plataforma actúa por la organización) | todos | todos | todos |
+| `member` | los suyos | los suyos | los suyos |
+| `reviewer` | todos los de la organización | no | no |
+| `org_admin` | todos | todos | todos |
+
+Un documento que el usuario no puede leer responde `404`, no `403`, para no revelar que existe.
+
+**Idempotencia:** `Idempotency-Key` es `[A-Za-z0-9._:-]{8,128}` y es única por organización. Repetir la misma clave con el mismo contenido devuelve la versión ya creada; con otro contenido devuelve `409`. Ocho peticiones simultáneas con la misma clave crean exactamente una versión (probado en MariaDB).
 
 Semántica de errores de auth: `401` = credencial ausente, inválida o revocada. `403` = el cliente no puede actuar para esa organización (también cuando la organización **no existe**, para no revelar cuáles existen) o el usuario no pertenece a ella. `422` = cabecera con formato inválido, o usuario sin organización.
 
@@ -41,9 +59,9 @@ Semántica de errores de auth: `401` = credencial ausente, inválida o revocada.
 
 Una sola ruta `POST /evaluations` con `product` en el cuerpo, en vez de tres rutas por producto: el contrato es el mismo y la validación por producto vive en `products/<p>/schemas`.
 
-## 3. Documento de entrada v1 — PROPUESTA para acordar con appcli2
+## 3. Documento de entrada v1 — IMPLEMENTADO, pendiente de confirmar con appcli2
 
-> Sustituye al borrador v0 (bloques con coordenadas), que no correspondía a lo que la plataforma produce. Esta versión parte de la forma real de la extracción de appcli2 (INTEGRATION_XPLAGIAX §1). **No hay código que la use todavía.**
+> Sustituye al borrador v0 (bloques con coordenadas), que no correspondía a lo que la plataforma produce. Esta versión parte de la forma real de la extracción de appcli2 (INTEGRATION_XPLAGIAX §1). Validador: `integrity/domain/ingestion_contract.py`.
 
 ```json
 {
@@ -77,4 +95,9 @@ Reglas previstas:
 - `content_sha256` = `text_sha256(text)`: SHA-256 del texto con los espacios colapsados, la misma definición que usa la plataforma.
 - `paragraphs` es opcional. Si llega, cada elemento es `[página, nº de párrafo, texto]` y las ubicaciones de los hallazgos son `(página, párrafo, char_start, char_end)`. Si no llega, las ubicaciones son offsets sobre `text`.
 - `extraction.status = failed`, o menos palabras que el umbral del producto → se rechaza de forma explícita (`extraction_status = insufficient`). `partial` se acepta y queda como limitación en el informe.
-- Límites: 16 MiB por petición (`XI_MAX_REQUEST_BYTES`); número máximo de párrafos y tamaño por párrafo, a definir con datos reales.
+- Todos los problemas de formato se devuelven juntos en `error.details` (hasta 50).
+- Límites implementados (`ContractLimits`): texto ≤ 5.000.000 caracteres; ≤ 50.000 párrafos de ≤ 50.000 caracteres; ≤ 10.000 páginas; mínimo 10 palabras (el mismo mínimo que aplica appcli2). Cuerpo ≤ 12 MiB (`XI_MAX_REQUEST_BYTES`).
+- `extraction.status = partial`, idioma no detectado o un `word_count` declarado distinto del recibido **no se rechazan**: se guardan como limitaciones de la versión para que aparezcan en el informe.
+- `source.filename` se guarda como dato y nunca se usa como ruta.
+
+**Pregunta abierta para appcli2:** el texto viaja dos veces (en `text` y dentro de `paragraphs`). Si appcli2 siempre envía párrafos, `text` podría derivarse de ellos y el cuerpo se reduciría casi a la mitad.

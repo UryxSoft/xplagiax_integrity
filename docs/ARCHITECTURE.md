@@ -177,7 +177,9 @@ Las pruebas nunca llaman a proveedores reales. Las pruebas en vivo de los adapta
 | Escritor de auditoría | Base inicial (solo lo usa el CLI) | `test_constraints_and_cli.py` |
 | Gestión de evidencias | Base inicial (esquema sí; nada genera evidencias todavía) | — |
 | Rate limiting, Valkey | Pendiente | — |
-| Ingestión, normalización | Pendiente (bloqueado por el contrato de appcli2) | — |
+| Ingestión: validación v1, idempotencia, versiones, almacenamiento comprimido, purga | Base inicial (contrato v1 sin confirmar por appcli2) | `test_documents.py`, `test_mysql_integration.py` |
+| Repositorios con filtro de organización obligatorio (`TenantScope`) | Implementado | `test_documents.py` |
+| Normalización con mapa de offsets | Pendiente | — |
 | Todos los motores científicos | Pendiente / requiere investigación / requiere API externa | `domain/capabilities.py`, `GET /api/v1/version` |
 | Workers | Pendiente (ADR-0005) | — |
 | Informes, certificados, verificación | Pendiente (el esquema existe) | — |

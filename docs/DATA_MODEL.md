@@ -39,7 +39,8 @@ Global (sin organización): engine_versions, external_sources
 | `service_clients` | Credencial de máquina; solo se guarda el HMAC | UQ `key_prefix`; CHECK scope↔org |
 | `projects` | Agrupación opcional | FK de organización → users |
 | `documents` | Documento lógico; `retention_until`, `purged_at` | IX `(organization_id, created_at)`, IX `retention_until` |
-| `document_versions` | Instantánea **inmutable** de lo que se analizó: `content_sha256`, `file_sha256`, `storage_ref`, estado y motor de extracción | UQ `(document_id, version_number)`; IX `(organization_id, content_sha256)` |
+| `document_versions` | Instantánea **inmutable** de lo que se analizó: `content_sha256`, `file_sha256`, `idempotency_key`, `upstream_ref`, productor, estado de extracción y limitaciones recibidas | UQ `(document_id, version_number)`; IX `(organization_id, content_sha256)` |
+| `document_contents` | Texto y párrafos de una versión, comprimidos (`zlib+json/v1`) con el SHA-256 del blob. Tabla aparte para que las consultas de metadatos no carguen texto y la purga borre solo esto | PK `version_id`; FK de organización → document_versions |
 | `engine_versions` | Registro de `(motor, versión, sha256 de config)` | UQ de las tres columnas |
 | `evaluations` | Una ejecución de un producto sobre una versión. `config_snapshot` + `config_sha256` congelados | UQ `(organization_id, idempotency_key)`; IX `(organization_id, status, created_at)` |
 | `evaluation_stages` | Traza por etapa **y** unidad de trabajo de los workers (lease, intentos, `not_before`) | UQ `(evaluation_id, stage_name)`, UQ `(evaluation_id, sequence)`; IX `(status, not_before, lease_expires_at)` |
@@ -76,8 +77,9 @@ Qué garantiza esto y qué no:
 - Los motores deterministas (sin llamadas externas) deben dar el mismo resultado con las mismas tres primeras entradas. Eso se podrá comprobar con pruebas.
 - Las respuestas de proveedores externos **no se guardan**; solo su hash (`response_sha256`). Se puede detectar que una fuente respondió distinto en una reevaluación, pero **no reproducir** el resultado original. Los hallazgos que dependan de fuentes externas o de modelos deben declararlo en `limitations`.
 
-## 5. Retención y borrado [DISEÑO]
+## 5. Retención y borrado [PARCIAL]
 
-- Purgar = borrar el blob (`storage_ref`) y `evidence.excerpt_text`, y marcar `documents.purged_at`. **Se conservan** los hashes, los hallazgos sin fragmentos y la auditoría, para que un certificado emitido pueda verificarse sin guardar el contenido.
+- Purgar = borrar las filas de `document_contents` (y en el futuro `evidence.excerpt_text`), poner `documents.title` a nulo y marcar `documents.purged_at`. **Implementado** en `DELETE /documents/{id}`. **Se conservan** los hashes, los hallazgos sin fragmentos y la auditoría, para que un certificado emitido pueda verificarse sin guardar el contenido.
 - No hay `ON DELETE CASCADE`: el borrado es una operación explícita y auditada (Etapa 2).
-- Retención por defecto de la plataforma: a definir con negocio y legal. `organizations.retention_days` la puede reducir.
+- `documents.retention_until` se calcula al ingerir a partir de `organizations.retention_days`. **Falta** el proceso periódico que purga los vencidos.
+- Retención por defecto de la plataforma: a definir con negocio y legal.

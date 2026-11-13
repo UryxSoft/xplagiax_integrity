@@ -78,3 +78,25 @@ def test_web_process_does_not_import_alembic():
             "a.test_client().get('/api/v1/health/ready'); print('alembic' in sys.modules)")
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()
     assert out.splitlines()[-1] == "False"
+
+
+def test_0002_upgrades_a_database_that_already_has_versions(db_url):
+    """New NOT NULL columns must be backfilled, not just added."""
+    from sqlalchemy import text
+
+    cfg = alembic_config(db_url)
+    command.upgrade(cfg, "0001")
+    engine = create_engine(db_url)
+    with engine.begin() as c:
+        c.execute(text("INSERT INTO organizations (id, external_ref, name, status, created_at, updated_at) "
+                       "VALUES ('o1', 'org', 'Org', 'active', '2026-01-01', '2026-01-01')"))
+        c.execute(text("INSERT INTO documents (id, organization_id, created_at) VALUES ('d1', 'o1', '2026-01-01')"))
+        c.execute(text("INSERT INTO document_versions (id, organization_id, document_id, version_number, source_kind, "
+                       "content_sha256, extraction_status, created_at) VALUES "
+                       "('v1', 'o1', 'd1', 1, 'upstream_extraction', :h, 'complete', '2026-01-01')"), {"h": "0" * 64})
+    command.upgrade(cfg, "head")
+    with engine.connect() as c:
+        row = c.execute(text("SELECT idempotency_key, limitations FROM document_versions WHERE id='v1'")).one()
+    assert row[0] == "legacy#v1" and row[1] == "[]"
+    command.downgrade(cfg, "0001")
+    command.upgrade(cfg, "head")

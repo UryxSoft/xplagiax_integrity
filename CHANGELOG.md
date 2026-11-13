@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.0] — 2026-11-13 — Etapa 2: ingestión de documentos
+
+### Añadido
+- `POST /api/v1/documents`, `POST /api/v1/documents/{id}/versions`, `GET /api/v1/documents/{id}` y `DELETE /api/v1/documents/{id}` (purga).
+- Validador del documento de entrada `xplagiax.document/v1`, que devuelve todos los problemas a la vez.
+- Idempotencia por organización con `Idempotency-Key`, correcta con peticiones simultáneas en InnoDB.
+- Tabla `document_contents`: texto y párrafos comprimidos, con verificación de integridad al leer.
+- `TenantScope`: repositorio con filtro de organización obligatorio (cierra el hallazgo M5 de la auditoría para los documentos).
+- Visibilidad de documentos por rol (`member`, `reviewer`, `org_admin`).
+- Migración `0002`, con relleno de las columnas nuevas para tablas que ya tengan filas.
+
+### Corregido
+- En InnoDB, la relectura tras una clave duplicada no veía la fila ganadora (instantánea `REPEATABLE READ`) y, con `FOR UPDATE`, los perdedores se bloqueaban entre sí. Ahora se relee con bloqueo compartido. Afectaba también al alta de organizaciones y usuarios.
+- Un `errorhandler` que relanzaba excepciones no producía la respuesta de error correcta.
+
+### Cambiado
+- Tope del cuerpo de las peticiones: de 16 a 12 MiB, alineado con el límite de 5 millones de caracteres (mediciones en `docs/PERFORMANCE.md` §1.2).
+- `document_ingestion` pasa a `baseline` en `/api/v1/version`.
+
 ## [0.1.0] — 2026-11-13 — Fase 1: fundación
 
 ### Añadido

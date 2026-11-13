@@ -27,10 +27,13 @@ Manuscritos sin publicar, tesis, **invenciones sin presentar** (su divulgación 
 | Contenedor sin root | Escrito, sin construir | `Dockerfile` |
 | Registro de auditoría (solo inserción) | Base inicial: CLI y alta de organizaciones y usuarios. Los fallos de autenticación van solo al log | `security/audit.py` |
 | Rate limiting por cliente y por organización (Valkey) | Pendiente — Etapa 1b | — |
-| Validación del esquema de ingestión, límites de bloques | Pendiente — Etapa 2 | API_CONTRACTS §3 |
+| Validación del documento de entrada, límites de tamaño y de párrafos | Implementado | `domain/ingestion_contract.py`, `test_documents.py` |
+| Visibilidad de documentos por rol; documentos ajenos responden 404 | Implementado | `application/documents.py`, `test_documents.py` |
+| Integridad del contenido guardado (SHA-256 del blob comprobado al leer) | Implementado | `infrastructure/content_store.py` |
 | Validación de archivos subidos (MIME real, bombas ZIP, PDF malformados) | Pendiente — solo si se habilita `local_upload` | ADR-0002 |
 | Protección SSRF en adaptadores (lista de hosts permitidos, sin redirecciones a IPs privadas) | Pendiente — Etapa 3 | — |
-| Retención y purga | Pendiente — Etapa 2 | DATA_MODEL §5 |
+| Purga de contenido bajo petición, auditada | Implementado | `DELETE /documents/{id}` |
+| Purga automática por retención | Pendiente | DATA_MODEL §5 |
 | Firma de certificados | Pendiente — Etapa 7 | — |
 
 **Path traversal:** el servicio nunca construye rutas a partir de datos de entrada. `original_filename` es solo informativo y el almacenamiento usa `storage_ref` opacos (SeaweedFS). Cuando se implemente la subida local, los nombres de archivo no podrán llegar al sistema de archivos.
@@ -58,6 +61,6 @@ Que appcli2 firme por petición un token de corta duración (`org`, `user`, `aud
 
 ## 5. Permisos de la base de datos (producción)
 
-- El usuario de la aplicación tiene `SELECT, INSERT, UPDATE` en las tablas de negocio y `SELECT, INSERT` en `audit_events`, sin `DELETE` ni DDL.
+- El usuario de la aplicación tiene `SELECT, INSERT, UPDATE` en las tablas de negocio, `DELETE` **solo** en `document_contents` (purga) y `SELECT, INSERT` en `audit_events`. Sin DDL.
 - Las migraciones se ejecutan con otro usuario, desde CI o desde un paso de despliegue.
 - La purga por retención la hace un proceso con su propio usuario y su propio registro de auditoría.

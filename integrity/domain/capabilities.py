@@ -28,7 +28,7 @@ class Engine:
 
 
 ENGINES: tuple[Engine, ...] = (
-    Engine("document_ingestion", Maturity.PENDING, "Receives upstream extraction JSON from xplagiax_appcli2; contract v0 draft in docs/API_CONTRACTS.md."),
+    Engine("document_ingestion", Maturity.BASELINE, "POST /documents (xplagiax.document/v1): validation, idempotency, versions, compressed storage, purge. Contract v1 awaits confirmation by xplagiax_appcli2.", version="1"),
     Engine("document_extraction", Maturity.REQUIRES_RESEARCH, "Primary extraction lives in xplagiax_appcli2. Local fallback and anydoc / LightOnOCR comparison pending benchmark."),
     Engine("ocr", Maturity.REQUIRES_RESEARCH, "Upstream responsibility by default; on-demand local OCR only if benchmark justifies it."),
     Engine("text_normalization", Maturity.PENDING, "Deterministic Unicode/whitespace normalisation with offset mapping to original text."),

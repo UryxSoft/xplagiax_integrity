@@ -11,8 +11,11 @@ from integrity.infrastructure.db.models import Organization, User
 from integrity.security.audit import record_audit_event
 
 
-def _org_by_ref(session: Session, external_ref: str) -> Organization | None:
-    return session.scalar(select(Organization).where(Organization.external_ref == external_ref))
+def _org_by_ref(session: Session, external_ref: str, *, latest: bool = False) -> Organization | None:
+    # latest=True: locking read, sees rows committed after this transaction's snapshot
+    # (needed after a unique-key violation on InnoDB REPEATABLE READ).
+    stmt = select(Organization).where(Organization.external_ref == external_ref)
+    return session.scalar(stmt.with_for_update(read=True) if latest else stmt)
 
 
 def ensure_organization(session: Session, *, external_ref: str, name: str, actor_id: str) -> tuple[Organization, bool]:
@@ -26,7 +29,7 @@ def ensure_organization(session: Session, *, external_ref: str, name: str, actor
             session.add(org)
             session.flush()
     except IntegrityError:  # another request created it first
-        org = _org_by_ref(session, external_ref)
+        org = _org_by_ref(session, external_ref, latest=True)
         if org is None:
             raise
         return org, False
@@ -38,9 +41,9 @@ def ensure_organization(session: Session, *, external_ref: str, name: str, actor
 def ensure_user(session: Session, *, organization: Organization, external_ref: str, role: UserRole,
                 actor_id: str) -> tuple[User, bool]:
     """Return (user, created). An existing user's role is updated if it differs."""
-    def find() -> User | None:
-        return session.scalar(
-            select(User).where(User.organization_id == organization.id, User.external_ref == external_ref))
+    def find(latest: bool = False) -> User | None:
+        stmt = select(User).where(User.organization_id == organization.id, User.external_ref == external_ref)
+        return session.scalar(stmt.with_for_update(read=True) if latest else stmt)
 
     user = find()
     if user is None:
@@ -50,7 +53,7 @@ def ensure_user(session: Session, *, organization: Organization, external_ref: s
                 session.add(user)
                 session.flush()
         except IntegrityError:
-            user = find()
+            user = find(latest=True)
             if user is None:
                 raise
         else:

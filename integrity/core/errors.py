@@ -25,12 +25,15 @@ class AppError(Exception):
     code = "internal_error"
     message = "Internal server error."
 
-    def __init__(self, message: str | None = None, *, code: str | None = None) -> None:
+    def __init__(self, message: str | None = None, *, code: str | None = None,
+                 details: list[str] | None = None) -> None:
         super().__init__(message or self.message)
         if message:
             self.message = message
         if code:
             self.code = code
+        # Safe, user-facing list of specific problems (e.g. contract violations).
+        self.details = details or []
 
 
 class AuthenticationError(AppError):
@@ -63,23 +66,36 @@ class Conflict(AppError):
     message = "The request conflicts with the current state of the resource."
 
 
+class Gone(AppError):
+    status_code = 410
+    code = "gone"
+    message = "The resource is no longer available."
+
+
 class ServiceUnavailable(AppError):
     status_code = 503
     code = "service_unavailable"
     message = "A required dependency is unavailable."
 
 
-def _envelope(code: str, message: str, status: int):
-    body = {"error": {"code": code, "message": message, "correlation_id": get_correlation_id()}}
-    return jsonify(body), status
+_MAX_DETAILS = 50
+
+
+def _envelope(code: str, message: str, status: int, details: list[str] | None = None):
+    error = {"code": code, "message": message, "correlation_id": get_correlation_id()}
+    if details:
+        error["details"] = details[:_MAX_DETAILS]
+    return jsonify({"error": error}), status
+
+
+def render_app_error(exc: AppError):
+    level = logging.ERROR if exc.status_code >= 500 else logging.INFO
+    log.log(level, "app_error", extra={"error_code": exc.code, "status": exc.status_code})
+    return _envelope(exc.code, exc.message, exc.status_code, exc.details)
 
 
 def register_error_handlers(app: Flask) -> None:
-    @app.errorhandler(AppError)
-    def _app_error(exc: AppError):
-        level = logging.ERROR if exc.status_code >= 500 else logging.INFO
-        log.log(level, "app_error", extra={"error_code": exc.code, "status": exc.status_code})
-        return _envelope(exc.code, exc.message, exc.status_code)
+    app.register_error_handler(AppError, render_app_error)
 
     @app.errorhandler(HTTPException)
     def _http_error(exc: HTTPException):

@@ -20,8 +20,28 @@ Entorno: contenedor Linux x86_64 con 4 vCPU y 16 GB, Python 3.13.18, MariaDB 10.
 ### Optimización medida
 La primera versión del health check de *readiness* importaba Alembic para conocer la cabecera de esquema. Con eso, un worker pasaba de 56,6 MB a **67,7 MB** tras sus primeras peticiones. Se cambió por una constante (`infrastructure/db/schema_version.py`) que un test compara con Alembic. El worker se queda ahora en **57,5 MB** (−10 MB por worker). Un test (`test_web_process_does_not_import_alembic`) impide que vuelva a pasar.
 
+### 1.2 Ingestión (Etapa 2)
+
+Mismo entorno, MariaDB 10.11. Un proceso, una petición `POST /documents` con texto de palabras aleatorias (comprime peor que texto real, así que el tamaño guardado es pesimista). "Δ pico" es el aumento del RSS máximo del proceso durante la petición.
+
+| Documento | Cuerpo | Δ pico de RSS | Tiempo | Guardado (zlib) | Resultado |
+|---|---|---|---|---|---|
+| 10.000 palabras (~11 págs.) | 0,15 MB | +2 MB | 0,04 s | 0,09 MB | 201 |
+| 100.000 palabras (~105 págs.) | 1,5 MB | +11 MB | 0,28 s | 0,89 MB | 201 |
+| 300.000 palabras (~313 págs.) | 4,6 MB | +36 MB | 0,57 s | 2,7 MB | 201 |
+| 600.000 palabras (~626 págs.) | 9,1 MB | +72 MB | 1,08 s | 5,3 MB | 201 |
+| 900.000 palabras (~938 págs.) | 13,7 MB | +55 MB | 0,15 s | — | 422 (supera 5 M caracteres) |
+
+Conclusiones:
+- El pico crece unas **8 veces el tamaño del cuerpo**: Flask decodifica el JSON entero y luego se construyen el texto, los párrafos y el blob comprimido.
+- Una tesis típica (80.000–100.000 palabras) cuesta unos +11 MB. Cabe en el presupuesto del worker de la API.
+- Una petición en el límite puede añadir del orden de +75–100 MB. Con 2 workers, dos peticiones así a la vez superan el presupuesto de 80 MB por worker: **hace falta limitar la concurrencia de ingestas grandes** (rate limiting, Etapa 1b) o aceptar `paragraphs` sin duplicar el texto (API_CONTRACTS §3).
+- El rechazo por tamaño ocurre **después** de leer el JSON. Por eso el tope de cuerpo se bajó de 16 a 12 MiB: así coincide con el límite de texto y no se gasta memoria en cuerpos que se van a rechazar de todos modos.
+
+Script: `scripts/bench_ingest.py <url-de-bd-desechable> <palabras>` (borra la base de datos de destino).
+
 ### Sin medir todavía
-Percentiles p50/p95/p99 bajo carga concurrente, throughput, CPU por petición, conexiones a MySQL bajo carga, imagen Docker (no hay daemon en esta sesión) y MySQL 8 real (solo se probó MariaDB).
+Percentiles p50/p95/p99 bajo carga concurrente (también de la ingestión), throughput, CPU por petición, conexiones a MySQL bajo carga, imagen Docker (no hay daemon en esta sesión) y MySQL 8 real (solo se probó MariaDB).
 
 ## 2. Cómo medir
 

@@ -36,9 +36,11 @@ class Settings:
     # HMAC pepper for API key hashing. Never logged, never returned.
     api_key_pepper: str = field(default="", repr=False)
     log_level: str = "INFO"
-    # Hard cap on any request body (bytes). Extraction payloads from appcli2
-    # are JSON; 16 MiB covers long dissertations with margin.
-    max_request_bytes: int = 16 * 1024 * 1024
+    # Hard cap on any request body (bytes). Sized to the document contract's
+    # 5M-character text limit: the text travels twice (``text`` and
+    # ``paragraphs``), ~10.5 MB at the limit. Flask parses the whole body before
+    # validation, so a larger cap only wastes memory (measured: docs/PERFORMANCE.md §1.2).
+    max_request_bytes: int = 12 * 1024 * 1024
     db_pool_size: int = 5
     db_max_overflow: int = 2
     db_pool_recycle_s: int = 1800
