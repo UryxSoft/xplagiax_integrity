@@ -153,6 +153,7 @@ Las pruebas nunca llaman a proveedores reales. Las pruebas en vivo de los adapta
 | SQLAlchemy 2.0 | Exigido; usable desde workers sin contexto de Flask | Flask-SQLAlchemy (añade acoplamiento a Flask y no ahorra nada) |
 | Alembic 1.16 | Migraciones; solo se carga en CLI y tests | Flask-Migrate (un envoltorio más) |
 | PyMySQL 1.1 | Driver de MySQL en Python puro, sin toolchain de C | mysqlclient (más rápido, pero necesita libmysqlclient; reconsiderar con mediciones) |
+| cryptography 46 | Lo exige PyMySQL para autenticarse en MySQL 8 (`caching_sha2_password`). Lo detectó el CI: con MariaDB no hacía falta | Usar `mysql_native_password` (obsoleto y desactivado por defecto en MySQL 8.4) |
 | gunicorn 23 (extra `server`) | Servidor WSGI de producción | — |
 | pytest 8 (dev) | Pruebas | — |
 

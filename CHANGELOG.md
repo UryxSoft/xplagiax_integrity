@@ -31,6 +31,7 @@
 - L1, L2, L3, L5 (índice) y L6.
 
 ### Añadido
+- Dependencia `cryptography`: PyMySQL la necesita para autenticarse en MySQL 8. Lo detectó la primera ejecución del CI.
 - `PUT /api/v1/organizations/{ref}` y `PUT /api/v1/organizations/{ref}/users/{ref}` para que la plataforma dé de alta organizaciones y usuarios.
 - Capa `application/` y convenciones compartidas con la plataforma (`text_sha256`, organización personal `user:<id>`).
 - `document_versions.word_count`, `evaluations.upstream_ref`, `evaluation_stages.not_before`, `certificates.document_version_id` y `criteria_sha256`.
