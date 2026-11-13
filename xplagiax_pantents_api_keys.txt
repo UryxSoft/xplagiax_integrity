@@ -1,0 +1,922 @@
+
+
+
+
+account: rubeneduardonova02@gmail.com
+
+
+1. USPTO Open Data Portal (ODP)
+    DESCRIPTION : 
+                "patentes estadounidenses. Ofrece acceso gratuito a datos de solicitudes, 
+                continuidad, documentos de expedientes y otros conjuntos de datos. 
+                Necesitas una cuenta y una API key. Ideal para: claims y documentación de patentes estadounidenses, 
+                metadatos y análisis de antecedentes."
+    KEY: 
+
+
+
+
+
+2. EPO Open Patent Services (OPS)
+    email       : rubeneduardonova02@gmail.com
+    account     : eduardnova
+    pass        : EduardoNov@123
+    DESCRIPTION :
+                "Ofrece hasta 4 GB de datos por semana sin coste para usuarios no pagadores. 
+                Permite acceder a bibliografía, eventos legales, texto completo e imágenes. 
+                Incluye datos de distintas oficinas a través de sus bases de datos."
+    KEY:     
+            Consumer Key: S1jifgRx4lImlUERcADZ05FIsd2iP9SVO1UuAsVll5FXqdlG
+            Consumer Secret Key: XJ53AnYadFKnscXux4UKZi2Oalr3YZuGgUxK80rT0h9ZA8z0XQHaeEeSQKYfqmNJ 
+
+             Open Patent Services API
+
+            3.2 
+
+            OAS 3.0
+
+            Servers
+            Authorize
+            Published
+            GET
+            /published-data/search
+            Bibliographic data search service
+            GET
+            /published-data/search/{constituent}
+            Bibliographic data search service
+            GET
+            /published-data/{type}/{format}/{number}/biblio
+            Bibliographic data retrieval service
+            POST
+            /published-data/{type}/{format}/biblio
+            Bibliographic data retrieval service
+            GET
+            /published-data/{type}/{format}/{number}/abstract
+            Publications abstract service
+            POST
+            /published-data/{type}/{format}/abstract
+            Publications abstract service
+            GET
+            /published-data/{type}/{format}/{number}/full-cycle
+            Publications full cycle service
+            POST
+            /published-data/{type}/{format}/full-cycle
+            Publications full cycle service
+            GET
+            /published-data/{type}/{format}/{number}/fulltext
+            Fulltext inquiry service
+            POST
+            /published-data/{type}/{format}/fulltext
+            Fulltext inquiry service
+            GET
+            /published-data/{type}/{format}/{number}/description
+            Description retrieval service
+            POST
+            /published-data/{type}/{format}/description
+            Description retrieval service
+            GET
+            /published-data/{type}/{format}/{number}/claims
+            Claims retrieval service
+            POST
+            /published-data/{type}/{format}/claims
+            Claims retrieval service
+            GET
+            /published-data/{type}/{format}/{number}/equivalents
+            Equivalents retrieval service
+            POST
+            /published-data/{type}/{format}/equivalents
+            GET
+            /published-data/{type}/{format}/{number}/images
+            POST
+            /published-data/{type}/{format}/images
+            Images inquiry service
+            GET
+            /published-data/images/{image-country}/{image-number}/{image-kind}/{image-type}
+            Images retrieval service
+            POST
+            /published-data/images
+            Family
+            GET
+            /family/{type}/{format}/{number}
+            Family retrieval service
+            POST
+            /family/{type}/{format}
+            Family retrieval service
+            GET
+            /family/{type}/{format}/{number}/biblio
+            Family + biblio retrieval service
+            POST
+            /family/{type}/{format}/biblio
+            Family + biblio retrieval service
+            GET
+            /family/{type}/{format}/{number}/legal
+            Family + legal data retrieval service
+            POST
+            /family/{type}/{format}/legal
+            Family + legal data retrieval service
+            Legal
+            GET
+            /legal/{type}/{format}/{number}
+            Legal data retrieval service
+            POST
+            /legal/{type}/{format}
+            Legal data retrieval service
+            Register
+            GET
+            /register/search
+            Register data search service
+            GET
+            /register/search/{constituent}
+            Register data search service
+            GET
+            /register/{type}/{format}/{number}/biblio
+            Register data retrieval service
+            POST
+            /register/{type}/{format}/biblio
+            Register data retrieval service
+            GET
+            /register/{type}/{format}/{number}/events
+            Register events service
+            POST
+            /register/{type}/{format}/events
+            Register events service
+            GET
+            /register/{type}/{format}/{number}/procedural-steps
+            Register procedural steps service
+            POST
+            /register/{type}/{format}/procedural-steps
+            Register procedural steps service
+            GET
+            /register/{type}/{format}/{number}/upp
+            Register unitary patent service
+            POST
+            /register/{type}/{format}/upp
+            Register unitary patent service
+            Classification
+            GET
+            /classification/cpc/{class}
+            Classification schema service
+            GET
+            /classification/cpc/{class}/{subclass}
+            Classification schema service
+            POST
+            /classification/cpc
+            Classification schema service
+            GET
+            /classification/cpc/media/{media-name}
+            Classification media retrieval service
+            GET
+            /classification/cpc/search
+            Classification statistics search service
+            GET
+            /classification/map/{input-format}/{class}/{subclass}/{output-format}
+            Classification mapping service
+            Number
+            GET
+            /number-service/{type}/{input-format}/{number}/{output-format}
+            Number service
+            POST
+            /number-service/{type}/{input-format}/{output-format}
+            Number service
+            Schemas
+            Bodystring
+            Error{
+            code	[...]
+            message	[...]
+            }
+
+                
+
+
+
+
+
+3. EPO Linked Open EP Data
+
+        
+        1.Cómo empezar a utilizarlo
+            Portal oficial EPO Linked Open Data
+
+            Abrir consola SPARQLConsultas de patentes europeas sin API Key.
+
+            API REST
+            Documentación de API
+            Referencia de endpoints
+            Consultar endpoints disponibles
+
+        2.Prueba una consulta desde Python
+            No necesitas usuario, contraseña ni API Key.
+            import requestsurl = ("https://data.epo.org/linked-data/"    
+            "doc/publication/EP/1048543/A1.json")response = requests.get(url,headers={"Accept": "application/json"},timeout=30)response.raise_for_status()data = response.json()print(data)
+
+
+
+            Este ejemplo consulta una publicación europea identificada por su número y tipo de publicación. 
+            data.epo.org+1
+
+        3. ¿Cómo integrarlo en XplagiaX?
+            Mi recomendación es crear un conector independiente:
+            Parámetro	Configuración
+            Autenticación	Ninguna
+            Base URL	https://data.epo.org/linked-data
+            Formato	JSON / RDF / Turtle
+            Consultas avanzadas	SPARQL
+            API Key	No requerida
+            Licencia	CC BY 4.0
+            Coste	Gratis
+
+            Importante: EPO establece que su API y endpoint SPARQL están destinados a consultas ocasionales y no a funcionar como backend de producción de alto volumen. Para XplagiaX, conviene descargar los conjuntos de datos masivos y construir un índice local en Qdrant o una base de datos propia. 
+            epo.org+1
+
+        4. Una distinción importante
+            Linked Open EP Data
+            Sin API Key
+
+            Consultas HTTP, JSON y SPARQL sobre datos enlazados.
+
+            EPO Open Patent Services (OPS)
+            Credenciales OAuth
+
+            Otro servicio de EPO. Requiere registro y credenciales de desarrollador; ofrece una cuota gratuita para usuarios no pagadores de hasta 4 GB semanales, sujeta a condiciones. 
+            EPO+1
+
+            Portal de desarrolladores OPS
+            Mi recomendación: utiliza Linked Open Data para enriquecer los registros de patentes EP y OPS como una integración separada si necesitas otros datos o servicios.
+
+            prepara un prompt para Codex que implemente el conector EPO en XplagiaX, inspeccionando primero tu arquitectura Flask y reutilizando Qdrant sin alterar las funcionalidades existentes.
+
+
+4. Google Patents Public Datasets
+    Free tier
+    BigQuery · SQL · REST · Datos globales
+    Google Patents Public DataBigQuery Free Tier
+
+    Permite consultar conjuntos de datos públicos de patentes con SQL. BigQuery ofrece 1 TiB mensual de consultas gratuitas y 10 GiB de almacenamiento gratuito. También puedes probar BigQuery Sandbox sin tarjeta de crédito. 
+    Google Cloud Documentation+1
+
+
+    Ideal para: búsquedas históricas, pruebas, comparación de documentos y análisis masivo.
+
+    Limitación: hay que comprobar la actualización de cada tabla y sus condiciones de reutilización. No asumiría que todos los documentos están actualizados ni que todos los campos tienen cobertura mundial.
+
+5. IP Australia APIs
+    Conexión sin coste
+    Australia · REST · JSON
+    Portal oficial de APIs
+
+
+KBSB5T5CBPY1QGNE2DGZB4TY
+
+
+    IP Australia indica que conectar sus APIs no tiene una tarifa de integración. Algunas operaciones transaccionales pueden tener cargos, pero las APIs permiten obtener datos de búsqueda de patentes. 
+
+        Australian Patent Search API
+        The Australian Patent Search API allows you to search for Australian Patents and retrieve data related to that Patent.
+        Environment
+            
+        Instance
+            
+        URL
+        UAT	Test	
+        https://test.api.ipaustralia.gov.au/public/australian-patent-search-api/v1
+        PROD	Production	
+        https://production.api.ipaustralia.gov.au/public/australian-patent-search-api/v1
+
+            API Documentation
+            API Console
+
+        Overview
+
+        The Australian Patent Search API allows you to search for Australian Patents and retrieve data related to that Patent.
+        Base URL
+
+        TEST
+
+        The base URL for the Test instance of Australian Patent Search API is:
+
+        https://test.api.ipaustralia.gov.au/public/australian-patent-search-api/v1/
+
+        PRODUCTION
+
+        The base URL for the Production instance Australian Patent Search API is:
+
+        https://production.api.ipaustralia.gov.au/public/australian-patent-search-api/v1/
+
+        Requests
+
+        Australian Patent Search API has two endpoints, a quick search and a get by Patent Number.
+
+        Quick Search
+
+        There are currently two quick search endpoints:
+        /search/quick
+
+        The quick search endpoint enables a user to search for a list of Patents that match the given criteria. The request allows users to return either a list of Patent Numbers based on the search, or basic details for each Patent returned.
+
+            Method: POST
+            Request Path: /search/quick
+
+        Get By Patent Number
+
+        This endpoint allows users to get all of the information about a given Patent. The response contains all publicly available information about the Patent.
+
+            Method: GET
+            Request Path: /patent/{ipRightIdentifier}
+
+        Response Format
+
+        All responses are in JSON
+
+
+
+PUEUP API Zewnętrzne
+Platforma Usług Elektroniczych Urzędu Patentowego RP
+Punkty dostępowe API
+
+CMUiA
+API Zewnętrzne Centralnego Modułu Użytkowników i Autoryzacji.
+Dokumentacja: /cmuia/api/doc/external
+
+eProfil
+API Zewnętrzne modułów eProfil i eWsparcie.
+Dokumentacja: /eprofil/api/doc/external
+Instrukcja: Opis techniczny dla programistów
+
+eWyszukiwarka
+API Zewnętrzne modułu eWyszukiwarka.
+Dokumentacja: /ewyszukiwarka/api/doc/external
+Instrukcja: Opis techniczny dla programistów
+Instruction: Technical description for programmers
+
+Statystyka
+API dostępowe do informacji statystycznych.
+Dokumentacja: https://uprp.gov.pl/pl/o-urzedzie/statystyki/api-statystyk
+
+PORTOS
+API Wyszukiwarki Orzeczeń PORTOS.
+Instrukcja: Opis techniczny dla programistów
+
+
+
+https://ip-data.jpo.go.jp/api_guide/api_reference_e.html
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mi recomendación es que conviertas estos tres productos en servicios especializados de XplagiaX, no simplemente en tres nombres comerciales para vender créditos.
+
+La idea es que el usuario suba un documento, seleccione qué tipo de evaluación necesita y XplagiaX ejecute un flujo de análisis especializado según la naturaleza del documento.
+
+Esto es importante porque una patente, un artículo científico y una tesis tienen objetivos, estructuras y riesgos académicos diferentes.
+
+Te explico cómo funcionaría cada uno y qué aportaría respecto a las funcionalidades que ya tienes.
+1. XplagiaX Patent Integrity Pass
+Nuevo producto especializado
+
+
+
+
+
+
+
+
+dcp-ip.com
+
+
+¿Para quién?
+- Inventores independientes.
+- Investigadores universitarios.
+- Departamentos de innovación.
+- Empresas que desarrollan nuevas tecnologías.
+- Universidades con oficinas de transferencia tecnológica.
+- Personas que desean presentar una solicitud de patente.
+¿Qué problema resuelve?
+
+Una persona desarrolla una invención y prepara una solicitud de patente. Antes de presentarla, quiere saber:
+- Si existen documentos similares.
+- Si su descripción tiene coincidencias importantes con patentes anteriores.
+- Si existen fragmentos potencialmente copiados.
+- Si sus reivindicaciones están correctamente relacionadas con la descripción.
+- Si hay problemas de referencias o documentación.
+- Si el texto presenta señales de contenido generado por IA.
+No es simplemente detectar plagio: es evaluar la integridad documental y las posibles coincidencias técnicas de una invención.
+¿Cómo funcionaría cuando el usuario sube una patente?
+Imagina que un inventor sube:
+
+Smart_Autonomous_Water_Filter_Patent.pdf
+Flujo de Patent Integrity Pass
+1. 1. Identificación del documento
+   
+   XplagiaX identifica que es una solicitud de patente y extrae:
+   - Título de la invención.
+   - Inventores.
+   - Resumen.
+   - Descripción técnica.
+   - Reivindicaciones.
+   - Dibujos y referencias.
+2. 2. Análisis de antecedentes técnicos
+   
+   Busca documentos relacionados en las fuentes disponibles:
+   - Patentes estadounidenses.
+   - Patentes europeas.
+   - Otras bases de patentes integradas.
+   - Publicaciones científicas.
+   - Otras fuentes documentales disponibles.
+3. 3. Análisis de similitud y plagio
+   
+   Identifica coincidencias textuales y documentales, mostrando las fuentes encontradas y los fragmentos coincidentes.
+4. 4. Análisis de reivindicaciones
+   
+   Examina si las reivindicaciones están respaldadas por la descripción técnica, si existen términos inconsistentes y si hay referencias cruzadas problemáticas.
+5. 5. Detección de IA
+   
+   Evalúa señales de posible generación mediante IA en las distintas secciones del documento.
+6. 6. Informe Patent Integrity
+   
+   Genera un informe consolidado con coincidencias, referencias, observaciones técnicas y riesgos documentales.
+
+¿Qué vería el usuario?
+
+
+
+
+
+
+
+
+patentlens.ai
+
+
+Un informe con resultados como estos (ejemplo ilustrativo, no resultados reales):
+Indicador	Resultado
+Similitud documental	8.4%
+Contenido potencialmente IA	12%
+Fuentes técnicas relacionadas	18
+Coincidencias de reivindicaciones	3
+Referencias técnicas identificadas	12
+Consistencia descripción-reivindicaciones	Requiere revisión
+
+También mostraría:
+- Fragmentos coincidentes.
+- Número de patente o publicación relacionada.
+- Enlace a la fuente original.
+- Reivindicación afectada.
+- Explicación de por qué existe una coincidencia.
+- Recomendaciones para revisión.
+¿En qué se diferencia de lo que ya tienes?
+Funcionalidad	XplagiaX actual	Patent Integrity
+Detección de IA	Existe	Reutiliza
+Plagio textual	Existe	Reutiliza
+Búsqueda de patentes	Existe	Especializa
+Similitud documental	Existe	Especializa
+Extracción de reivindicaciones	Por verificar	Nueva integración
+Análisis de reivindicaciones	Por desarrollar	Nuevo módulo
+Relación descripción-reivindicaciones	Por desarrollar	Nuevo módulo
+Informe específico de patentes	Por desarrollar	Nuevo formato
+
+Mi recomendación: este producto debe diferenciarse por su análisis técnico de reivindicaciones y antecedentes, no por repetir el detector de plagio que ya tienes.
+
+Importante: no debe presentarse como una evaluación legal de patentabilidad, novedad jurídica o libertad de operación (Freedom to Operate). Esas conclusiones requieren análisis especializado de un profesional de propiedad industrial.
+
+2. XplagiaX Research Paper Review
+Nuevo producto especializado
+
+
+
+
+
+
+
+
+paperlab.ai
+
+
+¿Para quién?
+- Investigadores independientes.
+- Profesores universitarios.
+- Estudiantes de investigación.
+- Científicos.
+- Autores que preparan publicaciones.
+- Equipos de investigación.
+¿Qué problema resuelve?
+
+Un investigador tiene un artículo científico que quiere publicar en una revista o presentar en una conferencia.
+
+Quiere saber si:
+- Hay contenido potencialmente generado por IA.
+- Existen coincidencias con publicaciones anteriores.
+- Las citas corresponden realmente a las referencias.
+- Hay referencias bibliográficas incompletas.
+- Las afirmaciones están respaldadas por las fuentes citadas.
+- La estructura del documento tiene problemas.
+- Hay inconsistencias entre el resumen, metodología, resultados y conclusiones.
+Aquí la diferencia fundamental es que no solamente analizas si el documento tiene plagio: evalúas si está documentalmente preparado para una revisión académica.
+¿Cómo funcionaría cuando el investigador sube su artículo?
+Imagina que sube:
+
+Machine_Learning_for_Cancer_Detection.pdf
+Flujo de Research Paper Review
+1. 1. Clasificación científica
+   
+   Identifica el tipo de investigación:
+   - Original Research.
+   - Review Paper.
+   - Systematic Review.
+   - Case Study.
+   - Conference Paper.
+2. 2. Extracción de estructura científica
+   
+   Identifica:
+   - Abstract.
+   - Introduction.
+   - Literature Review.
+   - Methodology.
+   - Results.
+   - Discussion.
+   - Conclusion.
+   - References.
+3. 3. Originalidad y detección de IA
+   
+   Reutiliza tus módulos actuales de AI Detection y Plagiarism Detection.
+4. 4. Validación bibliográfica
+   
+   Comprueba:
+   - Si las citas aparecen en la bibliografía.
+   - Si las referencias bibliográficas están citadas en el texto.
+   - Si los DOI identificados son válidos.
+   - Si los metadatos bibliográficos coinciden con las fuentes.
+   - Si existen referencias incompletas.
+5. 5. Consistencia científica
+   
+   Examina relaciones entre metodología, resultados y conclusiones.
+   
+   Por ejemplo: identifica afirmaciones en las conclusiones que no parecen estar respaldadas por los resultados presentados.
+6. 6. Informe Research Paper Review
+   
+   Presenta hallazgos, referencias, problemas detectados y recomendaciones de corrección.
+
+¿Qué vería el investigador?
+
+
+
+
+
+
+
+
+pooltext.com
+
+
+Un informe estructurado:
+Evaluación	Resultado ilustrativo
+Similitud documental	4.2%
+Contenido potencialmente IA	9%
+Referencias identificadas	42
+DOI verificados	37/42
+Citas sin referencia	3
+Referencias no citadas	5
+Inconsistencias metodológicas	2
+Problemas de estructura	4
+
+Además, cada observación debería incluir:
+- Ubicación dentro del documento.
+- Fragmento relacionado.
+- Explicación del problema.
+- Fuente de verificación cuando corresponda.
+- Recomendación de corrección.
+¿En qué se diferencia de lo que ya tienes?
+Funcionalidad	XplagiaX actual	Research Paper Review
+Detección de IA	Existe	Reutiliza
+Plagio	Existe	Reutiliza
+Crossref / PubMed / arXiv	Existe	Reutiliza
+Extracción de referencias	Existe	Reutiliza y mejora
+Verificación de DOI	Por verificar	Especializa
+Citas sin referencias	Por desarrollar	Nuevo módulo
+Consistencia metodología-resultados	Por desarrollar	Nuevo módulo
+Revisión de estructura científica	Por desarrollar	Nuevo módulo
+Informe editorial científico	Por desarrollar	Nuevo formato
+
+Mi recomendación: este producto tiene mucho potencial porque puedes aprovechar los servicios de búsqueda científica que ya tienes, especialmente Crossref, PubMed y arXiv.
+
+No lo vendería como revisión por pares (Peer Review) ni como garantía de aceptación editorial. Lo posicionaría como un asistente de evaluación documental y preparación científica.
+
+3. XplagiaX Dissertation Certification
+Producto especializado de mayor valor
+
+
+
+
+
+
+
+
+bindewerk.at
+
+
+¿Para quién?
+- Estudiantes de grado.
+- Estudiantes de maestría.
+- Doctorandos.
+- Investigadores universitarios.
+- Universidades.
+- Instituciones que necesitan evaluar documentos académicos.
+Este producto es diferente de Research Paper Review porque una tesis es un documento mucho más extenso, con múltiples capítulos, referencias, anexos y relaciones internas.
+
+¿Qué problema resuelve?
+
+Una persona está terminando su tesis y quiere verificar que está preparada documentalmente antes de entregarla.
+
+Quiere saber:
+- Si hay contenido potencialmente generado por IA.
+- Si existen coincidencias de plagio.
+- Si las citas y referencias están correctamente relacionadas.
+- Si hay inconsistencias entre capítulos.
+- Si existen referencias incorrectas.
+- Si las conclusiones están relacionadas con los objetivos.
+- Si el documento mantiene coherencia académica.
+- Si puede obtener un informe final verificable.
+¿Cómo funcionaría cuando el estudiante sube su tesis?
+Imagina que sube:
+
+Doctoral_Dissertation_Final.pdf
+Flujo de Dissertation Certification
+1. 1. Registro de la tesis
+   
+   XplagiaX identifica el documento, su extensión, título, autor y estructura.
+2. 2. División por capítulos
+   
+   Identifica y separa:
+   - Capítulo 1: Introducción.
+   - Capítulo 2: Marco teórico.
+   - Capítulo 3: Metodología.
+   - Capítulo 4: Resultados.
+   - Capítulo 5: Discusión y conclusiones.
+   - Bibliografía y anexos.
+3. 3. Análisis individual por capítulo
+   
+   Ejecuta detección de IA, plagio y similitud, identificando los resultados por sección.
+4. 4. Auditoría bibliográfica integral
+   
+   Comprueba citas, referencias, DOI, fuentes disponibles y correspondencia entre las citas y la bibliografía.
+5. 5. Análisis de coherencia entre capítulos
+   
+   Examina si:
+   - Los objetivos aparecen relacionados con los resultados.
+   - La metodología corresponde con la investigación planteada.
+   - Las conclusiones están respaldadas por los resultados.
+   - No existen contradicciones importantes entre capítulos.
+   - Los términos y conceptos se utilizan consistentemente.
+6. 6. Correcciones y reanálisis
+   
+   El estudiante corrige el documento y vuelve a subir la versión actualizada.
+   
+   XplagiaX compara los resultados entre versiones y muestra qué problemas se resolvieron y cuáles permanecen.
+7. 7. Evaluación final
+   
+   Si cumple los criterios de emisión configurados, genera el Academic Integrity Assessment Certificate.
+
+¿Qué vería el estudiante?
+
+
+
+
+
+
+
+
+marthaia.com
+
+
+Un informe mucho más completo que el análisis de un documento convencional.
+Evaluación	Resultado ilustrativo
+Similitud documental	3.8%
+Contenido potencialmente IA	7.2%
+Capítulos identificados	5/5
+Referencias identificadas	128
+DOI verificados	116
+Citas sin referencias	2
+Referencias no citadas	6
+Inconsistencias entre capítulos	3
+Estado de evaluación	Requiere correcciones
+
+El sistema podría presentar una matriz por capítulos:
+Capítulo	IA	Similitud	Estado
+Introducción	5%	2%	Revisado
+Marco teórico	8%	7%	Revisar
+Metodología	3%	1%	Revisado
+Resultados	2%	2%	Revisado
+Conclusiones	12%	3%	Revisar
+
+Los porcentajes son ejemplos ilustrativos. Deben interpretarse con las limitaciones de los detectores y no como una medición concluyente de autoría.
+¿En qué se diferencia de lo que ya tienes?
+Funcionalidad	XplagiaX actual	Dissertation Certification
+Detección de IA	Existe	Reutiliza
+Plagio	Existe	Reutiliza
+Análisis PDF/DOCX	Existe	Reutiliza
+Referencias excluidas del cálculo	Existe	Reutiliza
+Historial de documentos	Existe	Reutiliza
+Análisis por capítulos	Por desarrollar	Nuevo flujo
+Comparación entre versiones	Por desarrollar	Nueva capacidad
+Coherencia entre capítulos	Por desarrollar	Nuevo módulo
+Auditoría bibliográfica integral	Por desarrollar	Especializa
+Certificado final condicionado	Por integrar	Nuevo flujo comercial
+
+Mi recomendación: este debería ser tu producto premium. No vendes únicamente un análisis de plagio; vendes un proceso de evaluación documental que acompaña al estudiante desde el borrador hasta la versión final.
+
+4. Diferencias entre los tres productos
+Esta es la separación comercial y funcional que implementaría:
+Patent Integrity Pass
+Propiedad intelectual
+
+¿Mi patente presenta riesgos documentales o coincidencias técnicas?
+Analiza antecedentes técnicos, similitudes, reivindicaciones y consistencia de la documentación.
+
+Research Paper Review
+Publicación científica
+
+¿Mi artículo científico está preparado documentalmente para presentarse?
+Analiza originalidad, referencias, DOI, estructura científica y consistencia de la investigación.
+
+Dissertation Certification
+Evaluación integral
+
+¿Mi tesis está preparada para su entrega y evaluación académica?
+Analiza capítulos, originalidad, referencias, coherencia entre secciones, versiones y certificado final.
+
+5. Cómo lo integraría con tu arquitectura actual
+Aquí está la decisión técnica más importante: no debes construir tres motores de análisis independientes.
+
+Ya tienes funcionalidades que pueden convertirse en servicios compartidos.
+Arquitectura funcional propuesta
+XplagiaX Specialized Products
+
+Tres productos comerciales
+
+Patent
+
+Patent workflow
+
+Research
+
+Paper workflow
+
+Dissertation
+
+Thesis workflow
+
+
+
+Shared Analysis Services
+AI Detection
+
+Plagiarism Detection
+
+Similarity Analysis
+
+Citation Analysis
+
+Academic Search
+
+Document Extraction
+
+Report Generation
+
+Certificate Engine
+
+
+
+
+Existing XplagiaX Infrastructure
+
+Flask · SQLAlchemy · MySQL · Redis · PayPal · Qdrant · Existing document storage
+
+
+Los tres productos deben tener diferentes configuraciones de ejecución, reglas, validaciones e informes, pero compartir los motores existentes.
+
+No necesitas triplicar infraestructura ni costes de mantenimiento.
+
+6. Cómo se vería para el usuario al subir un documento
+Esta es la experiencia que implementaría en XplagiaX:
+What would you like to evaluate?
+
+Select the type of document you want XplagiaX to evaluate.
+
+
+
+
+
+
+
+
+
+
+Patent / Invention
+
+Patent Integrity Pass
+
+Technical similarities, prior art references and claims consistency.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Research Paper
+
+Research Paper Review
+
+Originality, citations, references and scientific structure.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Thesis / Dissertation
+
+Dissertation Certification
+
+Chapter-by-chapter evaluation, academic integrity and final assessment.
+
+
+
+Concepto de experiencia de usuario, no interfaz actualmente implementada.
+
+Después de seleccionar el tipo de documento, XplagiaX:
+1. Identifica el archivo y su estructura.
+2. Comprueba qué módulos corresponden al producto.
+3. Presenta el alcance y precio.
+4. Solicita el pago o utiliza un paquete adquirido.
+5. Ejecuta el flujo especializado.
+6. Genera el informe.
+7. Permite correcciones y reanálisis según los créditos disponibles.
+Esto también puede funcionar con los usuarios que ya tienen suscripciones: podrían utilizar sus cuotas existentes para análisis convencionales, mientras que los paquetes especializados desbloquean procesos adicionales.
+7. Qué desarrollaría primero
+No recomiendo implementar los tres productos simultáneamente. Priorizaría según la reutilización de lo que ya tienes y el esfuerzo adicional.
+1. Research Paper Review
+Primera prioridad
+
+Es el que mejor aprovecha tu infraestructura actual de Crossref, PubMed, arXiv, detección de IA, plagio y análisis de documentos.
+
+Desarrollo adicional: validación bibliográfica, estructura científica e informe especializado.
+
+2. Dissertation Certification
+
+Puede reutilizar gran parte del Research Paper Review, incorporando análisis por capítulos, comparación de versiones y emisión condicionada de certificados.
+
+Desarrollo adicional: segmentación, coherencia entre capítulos y workflow de certificación.
+
+3. Patent Integrity Pass
+
+Tiene una diferenciación comercial interesante, pero requiere mayor especialización en extracción de reivindicaciones, búsqueda de antecedentes técnicos y análisis de relaciones entre documentos de patentes.
+
+Desarrollo adicional: pipeline específico de patentes y análisis técnico especializado.
+
+8. Mi recomendación final para el negocio
+Yo organizaría la oferta de XplagiaX en cuatro líneas:
+Producto	Modelo comercial
+XplagiaX Academic Review	Pago único
+Research Paper Review	Pago único
+Dissertation Certification	Pago único premium
+Patent Integrity Pass	Pago único especializado
+
+Y mantendría las suscripciones actuales para usuarios recurrentes.
+
+Una distinción fundamental: un certificado no debe significar que XplagiaX garantiza que una tesis, investigación o patente es legalmente válida, científicamente correcta o aceptable por una institución. Debe demostrar qué documento fue evaluado, qué pruebas se ejecutaron, con qué versiones de los motores, cuándo y cuáles fueron los resultados.
+Una decisión que tomaría ahora
+Separaría claramente dos niveles de servicio:
+- Document Analysis: lo que XplagiaX ya hace; detectar IA, similitud y plagio.
+- Specialized Integrity Assessment: el nuevo servicio que interpreta los resultados según el tipo de documento, valida referencias y estructura, identifica riesgos específicos y genera un informe especializado.
+Esta separación es la que realmente justifica cobrar más por los nuevos paquetes y evita que el usuario sienta que está pagando tres veces por el mismo detector.
+
+Mi recomendación es construir primero Research Paper Review y Dissertation Certification sobre los motores existentes, y después desarrollar Patent Integrity como una vertical especializada de propiedad intelectual.
