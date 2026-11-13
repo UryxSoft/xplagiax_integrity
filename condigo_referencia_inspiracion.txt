@@ -1,0 +1,107 @@
+https://huggingface.co/spaces/bhlewis/BERT-for-Patents_Semantic-Patent-Finder-v2/blob/main/patent_metadata.jsonl
+
+
+https://huggingface.co/spaces/CaleraLabs/patentsec-examiner-arena
+
+
+**No necesitas API Key** para usar la API de Open Library.
+
+Las APIs públicas de lectura (search, works, editions, authors, covers, search inside, etc.) son **completamente abiertas**. No requieren registro, token ni API key.
+
+### Lo único que debes hacer
+Enviar un header `User-Agent` identificativo para obtener el rate limit más alto (3 requests/segundo en lugar de 1):
+
+```http
+User-Agent: MiPlataformaAntiplagio (tu-email@dominio.com)
+```
+
+Ejemplo en código:
+
+**Python (requests)**
+```python
+headers = {
+    "User-Agent": "MiPlataformaAntiplagio (tu-email@dominio.com)"
+}
+
+response = requests.get(
+    "https://openlibrary.org/search.json?q=harry+potter&fields=key,title,author_name",
+    headers=headers
+)
+```
+
+**JavaScript (fetch)**
+```javascript
+fetch("https://openlibrary.org/search.json?q=harry+potter&fields=key,title,author_name", {
+  headers: {
+    "User-Agent": "MiPlataformaAntiplagio (tu-email@dominio.com)"
+  }
+})
+```
+
+### Resumen
+- **API Key** → No existe / no se necesita
+- **Registro** → No es necesario para consultas de lectura
+- **Autenticación** → Solo se usa si quieres *escribir* datos (añadir/editar libros), y eso requiere cuenta de usuario + login
+- **Rate limit** → Mejora mucho si pones el `User-Agent` con tu email de contacto
+
+Puedes empezar a consumir la API inmediatamente sin ningún registro.
+
+
+Aquí tienes una lista práctica de **APIs y herramientas full gratis** (o con tier gratuito usable) para validar derechos de autor / originalidad de **código fuente**, **libros** y **poemas**.
+
+### 1. Código Fuente (plagio / similitud de código)
+
+| Herramienta / API | Tipo | Qué hace | Límites / Notas | Enlace |
+|-------------------|------|----------|------------------|--------|
+| **GitHub Search API** (Code Search) | Oficial | Busca código exacto o similar en repositorios públicos de GitHub | 10 req/min (code search) autenticado, 60 req/hora sin auth. Ideal para detectar copias de GitHub | [docs.github.com](https://docs.github.com/en/rest/search/search) |
+| **Dolos** | Open Source + Web + API | Detección de plagio de código (soporta muchos lenguajes). Usa fingerprinting avanzado | Completamente gratis. Web app pública + CLI + librería JS + API self-hosteable | [dolos.ugent.be](https://dolos.ugent.be) |
+| **JPlag** | Open Source | Clásico detector de plagio de código (muy usado en universidades) | Gratis, se ejecuta localmente | Buscar en GitHub "jplag" |
+| **MOSS** (Stanford) | Servicio gratuito | Detector clásico de similitud de código | Gratis para uso educativo/académico (requiere registro) | theory.stanford.edu/~aiken/moss |
+
+**Recomendación para código**: Combina **GitHub Code Search** (para buscar en internet) + **Dolos** (para comparar entre archivos que tú subes).
+
+### 2. Libros (verificar si está en dominio público o existe)
+
+| API | Tipo | Qué hace | Auth | Enlace |
+|-----|------|----------|------|--------|
+| **Gutendex (Project Gutenberg)** | Full gratis | Catálogo de +75.000 libros de dominio público. Filtra por copyright status, idioma, autor, etc. | Sin API key | [gutendex.com](https://gutendex.com) |
+| **Open Library API** | Full gratis | Metadatos de millones de libros (ISBN, autor, ediciones, portadas). Ideal para verificar existencia y ediciones | Sin API key (recomendado User-Agent con email) | [openlibrary.org/developers/api](https://openlibrary.org/developers/api) |
+| **Google Books API** | Tier gratuito generoso | Búsqueda de libros + metadatos + previews | API Key gratuita (cuota diaria) | [developers.google.com/books](https://developers.google.com/books) |
+| **Internet Archive APIs** | Full gratis | Búsqueda de libros digitalizados, metadatos y textos | Sin key para la mayoría de endpoints | archive.org |
+
+**Mejor combinación para libros**:
+- Gutendex → confirmar si está en **dominio público**.
+- Open Library + Google Books → verificar si el libro existe y sus ediciones.
+
+### 3. Poemas
+
+| API | Tipo | Qué hace | Auth | Enlace |
+|-----|------|----------|------|--------|
+| **PoetryDB** | Full gratis | Base de datos de poemas clásicos (dominio público). Busca por autor, título, líneas o cantidad de líneas | Sin API key | [poetrydb.org](https://poetrydb.org) |
+| **Gutendex** | Full gratis | También sirve para poemas que estén en Project Gutenberg | Sin key | gutendex.com |
+| **Open Library** | Full gratis | Metadatos de colecciones de poemas | Sin key | openlibrary.org |
+
+### 4. Obras con licencia abierta / Dominio Público (general)
+
+| API | Qué hace | Auth | Enlace |
+|-----|----------|------|--------|
+| **Openverse API** (antes CC Catalog) | Busca obras con licencias Creative Commons y dominio público (texto, imágenes, audio) | Sin key (OAuth opcional para más límites) | api.openverse.org |
+| **Wikimedia REST API** | Contenido de Wikipedia, Wikisource, Wiktionary, etc. | Sin key | mediawiki.org |
+
+### Resumen de mejores opciones por caso de uso
+
+| Caso de uso | Mejor opción gratis |
+|-------------|---------------------|
+| **Código fuente** (detectar copias) | GitHub Code Search + Dolos |
+| **Libros - dominio público** | Gutendex |
+| **Libros - metadatos / existencia** | Open Library + Google Books |
+| **Poemas clásicos** | PoetryDB |
+| **Cualquier texto + licencia abierta** | Openverse + Wikimedia |
+
+### Notas importantes
+
+- Ninguna API comercial de plagio (Copyleaks, Quetext, Turnitin, etc.) ofrece un tier realmente "full gratis" usable a escala. Las que aparecen con free tier suelen ser muy limitadas.
+- Para **código**, las mejores opciones realmente gratuitas son open source (Dolos, JPlag) + GitHub Search.
+- Para **libros y poemas**, las APIs de dominio público (Gutendex + PoetryDB + Open Library) son excelentes y 100% gratis.
+
+¿Quieres que te prepare ejemplos de código (Python o JavaScript) para alguna de estas APIs específicas?
