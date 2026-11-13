@@ -13,6 +13,12 @@ RULES = {
     "core": ("integrity.api", "integrity.infrastructure", "integrity.security"),
     "security": ("integrity.api", "integrity.application"),
     "application": ("flask", "werkzeug", "integrity.api"),
+    # Engines are pure: inputs in, outputs out.
+    "engines": ("flask", "werkzeug", "sqlalchemy", "integrity.api", "integrity.application",
+                "integrity.infrastructure", "integrity.integrations", "integrity.workers", "integrity.security"),
+    "workers": ("integrity.api",),
+    # Adapters never reach up into use cases or HTTP; only factory.py may touch Flask config.
+    "integrations": ("integrity.api", "integrity.application"),
 }
 
 

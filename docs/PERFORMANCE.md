@@ -55,6 +55,26 @@ Texto sintético de 300.000 palabras (2,26 M caracteres, ~313 páginas). Tiempo:
 - **Python o Rust:** con 0,4–0,7 s para una tesis de 300 páginas, la normalización no es un cuello de botella frente a las llamadas a APIs externas. No hay motivo medible para reescribirla en Rust. Se reconsiderará si el profiling de un motor real la señala.
 - La versión optimizada se compara con la de referencia en 6.000 entradas aleatorias (texto y offsets idénticos): `tests/test_normalization.py`.
 
+### 1.4 Worker
+
+Tesis sintética de 300.000 palabras con 600 DOI, MariaDB, un proceso:
+
+| Etapa | Tiempo | Δ RSS |
+|---|---|---|
+| `content_check` (descomprimir, verificar hash, resumen) | 0,14 s | +5 MB para ambas etapas |
+| `doi_detection` | 0,07 s | |
+
+Los motores actuales son baratos. Las cifras de motores reales (similitud, citas) se añadirán cuando existan.
+
+`version_diff` (dos versiones, 10 % de párrafos editados y 20 eliminados; tiempo sin `tracemalloc`, memoria en una ejecución aparte):
+
+| Palabras por versión | Párrafos | Tiempo | Pico de memoria |
+|---|---|---|---|
+| 100.000 | 834 | 0,96 s | 30 MB |
+| 300.000 | 2.500 | 2,92 s | 61 MB |
+
+Es el motor más caro hasta ahora, y sigue siendo pequeño para un proceso en segundo plano.
+
 ### Sin medir todavía
 Percentiles p50/p95/p99 bajo carga concurrente (también de la ingestión), throughput, CPU por petición, conexiones a MySQL bajo carga, imagen Docker (no hay daemon en esta sesión) y MySQL 8 real (solo se probó MariaDB).
 

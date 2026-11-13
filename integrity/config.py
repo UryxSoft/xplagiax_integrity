@@ -8,6 +8,7 @@ production app with missing or weak settings.
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass, field, fields
 from typing import Mapping
 
@@ -47,6 +48,9 @@ class Settings:
     db_connect_timeout_s: int = 5
     # Upper bound for a single DB read/write; a hung database must not hang a worker.
     db_io_timeout_s: int = 30
+    # Operator contact sent to Crossref in the User-Agent ("polite" usage). Must be a
+    # role address of the operator (e.g. integrity-ops@...), never an end user's email.
+    crossref_mailto: str = ""
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
@@ -68,6 +72,7 @@ class Settings:
             db_pool_recycle_s=_int(env, "XI_DB_POOL_RECYCLE_S", defaults.db_pool_recycle_s),
             db_connect_timeout_s=_int(env, "XI_DB_CONNECT_TIMEOUT_S", defaults.db_connect_timeout_s),
             db_io_timeout_s=_int(env, "XI_DB_IO_TIMEOUT_S", defaults.db_io_timeout_s),
+            crossref_mailto=env.get("XI_CROSSREF_MAILTO", ""),
         )
 
     def validate(self) -> "Settings":
@@ -78,6 +83,8 @@ class Settings:
             errors.append("XI_LOG_LEVEL must be DEBUG, INFO, WARNING or ERROR")
         if self.max_request_bytes <= 0:
             errors.append("XI_MAX_REQUEST_BYTES must be positive")
+        if self.crossref_mailto and not re.fullmatch(r"[^@\s<>()]+@[^@\s<>()]+\.[A-Za-z]{2,}", self.crossref_mailto):
+            errors.append("XI_CROSSREF_MAILTO must be an email address")
         if self.db_connect_timeout_s < 1 or self.db_io_timeout_s < 1:
             errors.append("database timeouts must be >= 1 second")
         if self.db_pool_size < 1 or self.db_max_overflow < 0:

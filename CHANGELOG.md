@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.7.0] — 2026-11-13 — Comparación de versiones y renovación del lease
+
+### Añadido
+- `integrity/engines/textsim.py`: primitivas de similitud léxica (secuencias de 5 palabras, Jaccard, contención, winnowing con su garantía de detección comprobada).
+- Motor `version_diff` v1 y etapa `version_comparison` (Dissertation): compara con la versión anterior y lista los párrafos modificados (con su similitud), añadidos y eliminados, con su ubicación. Recupera exactamente las ediciones de un corpus sintético con verdad conocida.
+- Renovación del lease mientras un motor trabaja (`LeaseKeeper`).
+
+### Corregido
+- En la primera versión de `version_diff`, un párrafo eliminado junto a uno editado se emparejaba mal y aparecían "añadidos" inexistentes. Ahora se empareja por mayor similitud, sin cruces.
+
+## [0.6.0] — 2026-11-13 — Etapa 3b: primer motor con hallazgos e informe JSON
+
+### Añadido
+- Motor `citation_consistency` v1: citas sin referencia y referencias no citadas, en estilo numérico y autor-año, con encabezados en varios idiomas. Sus hallazgos son observaciones estructurales que piden confirmación manual.
+- Los motores pueden devolver hallazgos con evidencia. Un hallazgo sin evidencia, o con una confianza que no declara si está calibrada, se rechaza al construirlo.
+- `GET /api/v1/evaluations/{id}/report`: informe JSON construido solo con lo guardado, con un hash reproducible que no cambia al purgar el documento y que detecta datos modificados.
+- La purga del documento borra también los fragmentos citados en las evidencias y conserva sus hashes.
+
+## [0.5.0] — 2026-11-13 — Etapa 3c: evaluaciones y workers
+
+### Añadido
+- `POST /api/v1/evaluations`, `GET /api/v1/evaluations/{id}`, `POST /api/v1/evaluations/{id}/cancel`.
+- Flujos de etapas por producto con la configuración congelada (`config_snapshot` + hash) y la versión de motor fijada al crear.
+- Worker (`flask integrity worker`): toma de etapas con lease (`SKIP LOCKED` en MySQL), motor ejecutado fuera de transacción, reintentos con espera, recuperación de workers caídos, cancelación.
+- Motores `content_check` (identidad del contenido por hash) y `doi_detection` (DOI escritos y su ubicación, sin verificar).
+- Capa `integrity/engines/`: funciones puras, sin base de datos ni HTTP (lo comprueba un test).
+- Servicio `worker` en `docker-compose.yml`.
+
+## [0.4.0] — 2026-11-13 — Etapa 3a: base de adaptadores y Crossref
+
+### Añadido
+- `integrity/integrations/base.py`: toda llamada externa pasa por la política de términos de la fuente (sin red si no está autorizada), HTTPS a un único host, sin redirecciones, tope de respuesta, reintentos acotados, circuit breaker y registro en `api_requests`.
+- Adaptador Crossref (búsqueda por DOI y bibliográfica). Bloqueado por política hasta que se revisen sus términos.
+- CLI `sources-sync` (registra el catálogo, siempre deshabilitado) y `source-review` (revisión humana auditada; la única forma de habilitar una fuente).
+- `integrity/domain/doi.py`: detección y normalización de DOI con posiciones en el texto.
+- Configuración `XI_CROSSREF_MAILTO` (contacto del operador).
+- Prueba en vivo opcional `tests/test_live_crossref.py`.
+
 ## [0.3.0] — 2026-11-13 — Etapa 2: ingestión de documentos
 
 ### Añadido

@@ -1,6 +1,6 @@
 # ADR-0005 — Trabajo en segundo plano: etapas con lease en MySQL; Valkey solo para rate limiting y caché
 
-- Estado: Propuesto (sin implementar)
+- Estado: **Implementado** (`integrity/workers/runner.py`); comportamiento concurrente probado en MariaDB
 - Fecha: 2026-11-13
 
 ## Contexto
@@ -18,3 +18,12 @@ Hace falta procesar en segundo plano, con estado durable por etapa, reintentos, 
 - (+) No hay que reconciliar la cola con la BD. La idempotencia sale de `UNIQUE(evaluation_id, stage_name)`.
 - (−) Sondear la tabla de etapas: con un intervalo de 1 a 2 s y un índice `(status, lease_expires_at)` la carga es despreciable con el volumen previsto. Se reconsiderará con mediciones.
 - Revisar en la Fase 2: el comportamiento de `SKIP LOCKED` en MySQL 8 frente a MariaDB y el riesgo de dejar de detectar trabajos colgados.
+
+## Implementación (2026-11-13)
+
+- `flask --app integrity.app:create_app integrity worker` procesa una etapa cada vez; se escala con más procesos. `SIGTERM` termina la etapa en curso y sale. `--max-stages N` recicla el proceso.
+- La toma de etapas es un `UPDATE` condicional (correcto en cualquier motor), precedido en MySQL por `SELECT … FOR UPDATE SKIP LOCKED`.
+- El motor se ejecuta **sin transacción abierta**. El resultado solo se guarda si el worker sigue teniendo el lease; un worker que vuelve tras perderlo no sobrescribe nada.
+- Lease por defecto de 300 s, **renovado** cada tercio del plazo por un hilo mientras el motor trabaja (`LeaseKeeper`). Si se pierde el lease (el worker estuvo detenido más que el plazo y otro tomó la etapa), la renovación se detiene y el resultado final se rechaza. Probado con un motor más lento que el lease; sin la renovación, la prueba falla.
+- Reintentos solo para errores inesperados del motor, con espera de 30 s × 2ⁿ (máx. 15 min). Los errores de datos (`content_hash_mismatch`, `content_unavailable`) no se reintentan.
+- Probado: orden de etapas, reintentos, lease caducado recuperado por otro worker, lease agotado → `lease_expired`, cancelación antes y durante la ejecución, y 4 workers en paralelo sobre 24 etapas en InnoDB: cada etapa se ejecuta exactamente una vez.

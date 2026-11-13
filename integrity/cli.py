@@ -91,4 +91,99 @@ def register_cli(app: Flask) -> None:
                                organization_id=client.organization_id, target_type="service_client", target_id=client.id)
             click.echo("revoked")
 
+    @group.command("sources-sync")
+    def sources_sync() -> None:
+        """Register the known providers. New rows are disabled and UNVERIFIED;
+        existing rows (and their reviews) are never modified."""
+        from integrity.infrastructure.db.models import ExternalSource
+        from integrity.integrations.catalog import CATALOG
+
+        with session_scope(current_app) as s:
+            existing = {code for (code,) in s.query(ExternalSource.code).all()}
+            added = [e["code"] for e in CATALOG if e["code"] not in existing]
+            for e in CATALOG:
+                if e["code"] not in existing:
+                    s.add(ExternalSource(code=e["code"], name=e["name"], base_url=e["base_url"]))
+            if added:
+                record_audit_event(s, action="external_sources.synced", actor_type=ActorType.SYSTEM, actor_id="cli",
+                                   details={"added": added})
+            click.echo(f"added: {', '.join(added) or 'none'}")
+
+    @group.command("source-review")
+    @click.option("--code", required=True)
+    @click.option("--reviewed-by", required=True, help="Person accountable for the review (name or role).")
+    @click.option("--terms-url", required=True)
+    @click.option("--authorization", type=click.Choice(["authorized", "restricted", "denied", "unverified"]),
+                  required=True)
+    @click.option("--allow", "allowed", multiple=True,
+                  type=click.Choice(["commercial_use", "storage", "vector_indexing", "ai_processing",
+                                     "excerpt_display", "redistribution"]),
+                  help="Use explicitly permitted by the terms. Repeatable. Unlisted uses are set to NOT allowed.")
+    @click.option("--license", "license_ref", default=None)
+    @click.option("--attribution", default=None)
+    @click.option("--cache-ttl", type=int, default=None)
+    @click.option("--notes", default=None)
+    @click.option("--enable/--disable", default=False)
+    def source_review(code, reviewed_by, terms_url, authorization, allowed, license_ref, attribution, cache_ttl,
+                      notes, enable) -> None:
+        """Record a human review of a provider's terms. This is the ONLY way to enable a source."""
+        from integrity.core.ids import utcnow
+        from integrity.domain.enums import SourceAuthorization
+        from integrity.infrastructure.db.models import ExternalSource
+
+        auth = SourceAuthorization(authorization)
+        if enable and auth not in (SourceAuthorization.AUTHORIZED, SourceAuthorization.RESTRICTED):
+            raise click.ClickException("a source can only be enabled with authorized or restricted terms")
+        if enable and "commercial_use" not in allowed:
+            raise click.ClickException("enabling requires --allow commercial_use (this is a commercial service)")
+        with session_scope(current_app) as s:
+            src = s.scalar(select(ExternalSource).where(ExternalSource.code == code))
+            if src is None:
+                raise click.ClickException("unknown source; run sources-sync first")
+            before = {"authorization": src.authorization.value, "enabled": src.enabled}
+            src.authorization = auth
+            for use in ("commercial_use", "storage", "vector_indexing", "ai_processing", "excerpt_display",
+                        "redistribution"):
+                setattr(src, f"allows_{use}", use in allowed)
+            src.terms_url, src.terms_reviewed_by, src.terms_reviewed_at = terms_url, reviewed_by, utcnow()
+            src.license_ref, src.attribution_text, src.cache_ttl_seconds, src.notes = license_ref, attribution, cache_ttl, notes
+            src.enabled = enable
+            record_audit_event(s, action="external_source.reviewed", actor_type=ActorType.SYSTEM, actor_id="cli",
+                               target_type="external_source", target_id=src.id,
+                               details={"code": code, "before": before, "authorization": authorization,
+                                        "allowed": sorted(allowed), "enabled": enable, "reviewed_by": reviewed_by})
+            click.echo(f"{code}: {authorization}, enabled={enable}, allowed={','.join(sorted(allowed)) or 'none'}")
+
+    @group.command("worker")
+    @click.option("--once", is_flag=True, help="Process at most one stage and exit.")
+    @click.option("--poll-interval", type=float, default=2.0, show_default=True)
+    @click.option("--lease", "lease_s", type=int, default=300, show_default=True,
+                  help="Seconds a claimed stage stays reserved for this worker.")
+    @click.option("--max-stages", type=int, default=0, help="Exit after N stages (0 = no limit). Bounds slow leaks.")
+    def worker(once: bool, poll_interval: float, lease_s: int, max_stages: int) -> None:
+        """Run the background stage worker. One stage at a time; scale with processes."""
+        import signal
+        import time
+
+        from integrity.workers.runner import new_worker_id, run_once
+
+        stop = {"flag": False}
+
+        def _stop(*_):
+            stop["flag"] = True  # finish the current stage, then exit
+
+        signal.signal(signal.SIGTERM, _stop)
+        signal.signal(signal.SIGINT, _stop)
+        wid, done = new_worker_id(), 0
+        click.echo(f"worker {wid} started", err=True)
+        while not stop["flag"]:
+            status = run_once(current_app, wid, lease_s)
+            if status is not None:
+                done += 1
+            if once or (max_stages and done >= max_stages):
+                break
+            if status is None:
+                time.sleep(poll_interval)
+        click.echo(f"worker {wid} stopped after {done} stage(s)", err=True)
+
     app.cli.add_command(group)

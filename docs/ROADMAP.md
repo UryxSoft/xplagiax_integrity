@@ -12,7 +12,7 @@ Orden de los productos: el prompt maestro propone Paper → Dissertation → Pat
 | **2. Ingestión** 🟡 | `POST /documents` con el documento de entrada v1 acordado; repositorios con filtro por organización obligatorio (M5); JSON canónico + `content_sha256`; normalización con mapa de offsets; segmentación; detección de idioma (ligera); estado de suficiencia; retención y purga | **Contrato real de appcli2** | Fixtures reales de appcli2 en `tests/fixtures`; ida y vuelta de offsets probada; documento vacío, corrupto o insuficiente → rechazo explícito; mismo JSON → mismo hash; RSS del worker medido con una tesis de 300 páginas |
 | **3a. Adaptadores** | Interfaz `SourceAdapter` con capacidades declaradas; Crossref primero; timeouts, reintentos con backoff, circuit breaker, caché según términos; `api_requests` en cada llamada; política SSRF | **Términos verificados** (DATA_SOURCES) y credenciales rotadas | Adaptador bloqueado si los flags no lo permiten (probado); mocks grabados; prueba en vivo *opt-in*; ninguna consulta con texto confidencial |
 | **3b. Motores de integridad** | Citas↔bibliografía, DOI, similitud léxica (n-gram/winnowing), cliente de los servicios de IA, gestión de evidencias, motor de informes JSON | Contratos de beyond_xota / finderx / scitrace | Cada motor cumple SCIENTIFIC_VALIDATION §4 antes de marcarse `implemented`; todos los hallazgos tienen evidencia y `nature` |
-| **3c. Workers** | Bucle de leases, reintentos, cancelación, recuperación de leases caducados, límites de concurrencia y memoria (ADR-0005) | — | Dos workers no pueden tomar la misma etapa (probado en MySQL); un worker muerto → la etapa se reanuda; cancelar detiene la siguiente etapa |
+| **3c. Workers** ✅ | Bucle de leases, reintentos, cancelación, recuperación de leases caducados, límites de concurrencia y memoria (ADR-0005) | — | Dos workers no pueden tomar la misma etapa (probado en MySQL); un worker muerto → la etapa se reanuda; cancelar detiene la siguiente etapa |
 | **5. Research Paper Review** (primero) | Parser IMRaD y alternativos, workflow, taxonomía, informe | 2, 3a, 3b, 3c | Prueba funcional de principio a fin con un paper con licencia abierta; informe reproducible desde la BD |
 | **6. Dissertation Certification** | Capítulos, coherencia entre capítulos, comparación de versiones (reutilizando resultados de secciones sin cambios cuando coincidan motor y configuración), perfiles de criterios | 5 | Tesis con 3 versiones: diferencias correctas y reutilización solo con el mismo `config_sha256` y la misma versión de motor |
 | **4. Patent Integrity Pass** (último, ver nota) | Parser de claims (independientes/dependientes), matriz claim↔descripción, búsqueda de antecedentes, informe | 3a (patentes), validar el método de comparación | Claims de patentes publicadas con licencia abierta parseadas con métricas; ninguna afirmación jurídica (revisión del texto del informe) |
@@ -36,3 +36,29 @@ Falta para cerrarla:
 - ~~Normalización con mapa de offsets~~ hecho (`domain/normalization.py`). Falta la segmentación en frases y fragmentos para los motores.
 - Proceso periódico de purga por retención.
 - Limitar la concurrencia de ingestas grandes (depende del rate limiting, Etapa 1b).
+
+## Estado de la Etapa 3a (2026-11-13)
+
+Hecho: base común de adaptadores (política de términos, HTTPS a un único host, sin redirecciones, reintentos, circuit breaker, registro en `api_requests` con huella HMAC), CLI `sources-sync` y `source-review`, adaptador Crossref y detección de DOI.
+
+Falta:
+- **Revisión humana de los términos de Crossref** y permitir `www.crossref.org` / `api.crossref.org` en la red del entorno para la prueba en vivo.
+- Adaptadores de PubMed, Europe PMC y arXiv (misma base).
+- Caché de respuestas, solo para fuentes con `allows_storage` y `cache_ttl_seconds` revisados.
+- El circuit breaker es por proceso. Con varios workers, cada uno aprende por separado; compartirlo requiere Valkey (decisión pendiente).
+
+## Estado de la Etapa 3c (2026-11-13)
+
+Hecho: `POST /evaluations`, `GET /evaluations/{id}`, `POST /evaluations/{id}/cancel`; worker con lease, orden de etapas, reintentos, recuperación de workers caídos y cancelación; etapas `content_check` y `doi_detection`. Probado en paralelo en InnoDB.
+
+Falta: ~~renovación del lease~~ (hecho); límite de memoria por proceso (`RLIMIT_AS` o cgroup del contenedor); métricas de cola (etapas pendientes, antigüedad).
+
+## Estado de la Etapa 3b (2026-11-13)
+
+Hecho: motor `citation_consistency` v1 (primeros hallazgos con evidencia), persistencia de hallazgos y evidencias, purga de fragmentos, informe JSON reproducible (`GET /evaluations/{id}/report`).
+
+Falta:
+- **Corpus de validación etiquetado y métricas** para `citation_consistency` y `doi_detection` (SCIENTIFIC_VALIDATION §4–5). Sin eso, ningún motor puede pasar a `implemented`.
+- ~~Similitud léxica entre versiones~~ hecho (`version_diff` v1). Falta la comparación contra fuentes autorizadas.
+- Cliente de los servicios de IA (beyond_xota / finderx / scitrace): faltan sus contratos.
+- Verificación de DOI contra Crossref (adaptador listo, bloqueado por términos).
