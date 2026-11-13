@@ -51,5 +51,5 @@
 |---|---|
 | C1 cerrado | ❌ Depende del propietario |
 | A1, A2, A3, M1 y M3 corregidos con pruebas | ✅ |
-| Batería en verde en MySQL 8 dentro de CI | Ver el workflow `CI` en GitHub. La primera ejecución destapó que faltaba `cryptography` para autenticarse en MySQL 8; se añadió |
+| Batería en verde en MySQL 8 dentro de CI | ✅ MySQL 8.4.13 en GitHub Actions (ejecución nº 2, commit `da0c53f`). La primera ejecución destapó que faltaba `cryptography` para autenticarse en MySQL 8; se añadió |
 | Documentación sin las afirmaciones falsas señaladas | ✅ |
