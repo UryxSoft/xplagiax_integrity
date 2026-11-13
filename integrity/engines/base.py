@@ -7,6 +7,14 @@ from integrity.domain.enums import EvidenceKind, FindingNature, Severity
 
 
 @dataclass(frozen=True)
+class PreviousVersion:
+    version_number: int
+    content_sha256: str
+    text: str | None                     # None when its content was purged
+    paragraphs: list[tuple[int, int, str]]
+
+
+@dataclass(frozen=True)
 class StageInput:
     text: str
     paragraphs: list[tuple[int, int, str]]
@@ -14,6 +22,8 @@ class StageInput:
     language: str | None
     extraction_status: str
     upstream_limitations: tuple[str, ...]
+    # Loaded only for engines that declare NEEDS_PREVIOUS.
+    previous: PreviousVersion | None = None
 
 
 @dataclass(frozen=True)

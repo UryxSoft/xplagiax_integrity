@@ -32,7 +32,7 @@ ENGINES: tuple[Engine, ...] = (
     Engine("document_extraction", Maturity.REQUIRES_RESEARCH, "Primary extraction lives in xplagiax_appcli2. Local fallback and anydoc / LightOnOCR comparison pending benchmark."),
     Engine("ocr", Maturity.REQUIRES_RESEARCH, "Upstream responsibility by default; on-demand local OCR only if benchmark justifies it."),
     Engine("text_normalization", Maturity.BASELINE, "Deterministic, language-neutral normalisation with an exact offset map back to the original text (integrity/domain/normalization.py). Not yet wired into an engine.", version="1"),
-    Engine("similarity", Maturity.REQUIRES_RESEARCH, "Lexical (n-gram/winnowing) first; semantic via shared Qdrant only where licences allow."),
+    Engine("similarity", Maturity.BASELINE, "Lexical primitives (5-word shingles, Jaccard, winnowing) and version_diff v1 between versions of a document. Comparison against external sources pending authorised sources; semantic similarity not started.", version="1"),
     Engine("ai_content_analysis", Maturity.REQUIRES_EXTERNAL_API, "Delegated to sibling services (beyond_xota / finderx / scitrace); contracts not yet inspected."),
     Engine("citation_verification", Maturity.BASELINE, "citation_consistency v1: in-text citations vs reference list (numeric and author-year), heuristic, no precision metrics yet. DOI detection exists; DOI verification needs an authorised source.", version="1"),
     Engine("academic_source_discovery", Maturity.REQUIRES_EXTERNAL_API, "Crossref adapter built (DOI lookup, bibliographic search) and blocked by policy until its terms are reviewed. PubMed / Europe PMC / arXiv pending. Terms UNVERIFIED."),

@@ -51,7 +51,7 @@ Falta:
 
 Hecho: `POST /evaluations`, `GET /evaluations/{id}`, `POST /evaluations/{id}/cancel`; worker con lease, orden de etapas, reintentos, recuperación de workers caídos y cancelación; etapas `content_check` y `doi_detection`. Probado en paralelo en InnoDB.
 
-Falta: renovación del lease para motores lentos; límite de memoria por proceso (`RLIMIT_AS` o cgroup del contenedor); métricas de cola (etapas pendientes, antigüedad).
+Falta: ~~renovación del lease~~ (hecho); límite de memoria por proceso (`RLIMIT_AS` o cgroup del contenedor); métricas de cola (etapas pendientes, antigüedad).
 
 ## Estado de la Etapa 3b (2026-11-13)
 
@@ -59,6 +59,6 @@ Hecho: motor `citation_consistency` v1 (primeros hallazgos con evidencia), persi
 
 Falta:
 - **Corpus de validación etiquetado y métricas** para `citation_consistency` y `doi_detection` (SCIENTIFIC_VALIDATION §4–5). Sin eso, ningún motor puede pasar a `implemented`.
-- Similitud léxica (n-gramas / winnowing) entre versiones y contra fuentes autorizadas.
+- ~~Similitud léxica entre versiones~~ hecho (`version_diff` v1). Falta la comparación contra fuentes autorizadas.
 - Cliente de los servicios de IA (beyond_xota / finderx / scitrace): faltan sus contratos.
 - Verificación de DOI contra Crossref (adaptador listo, bloqueado por términos).

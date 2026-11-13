@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import socket
+import threading
 import uuid
 from dataclasses import dataclass
 from datetime import timedelta
@@ -33,7 +34,8 @@ from sqlalchemy.orm import Session, aliased
 from integrity.core.ids import utcnow
 from integrity.domain.enums import EvaluationStatus, EvidenceKind, StageStatus
 from integrity.engines.base import StageFailure, StageInput, StageOutput
-from integrity.engines.registry import ENGINES
+from integrity.engines.base import PreviousVersion
+from integrity.engines.registry import ENGINES, NEEDS_PREVIOUS
 from integrity.infrastructure import content_store
 from integrity.infrastructure.content_store import ContentIntegrityError
 from integrity.infrastructure.db.models import (
@@ -66,6 +68,7 @@ class Claim:
     organization_id: str
     worker_id: str
     attempt: int
+    lease_s: int = 300
 
 
 def _runnable(now):
@@ -113,7 +116,7 @@ def claim_next(session: Session, worker_id: str, lease_s: int, now=None) -> Clai
             if ev.status == EvaluationStatus.QUEUED:
                 ev.status = EvaluationStatus.PROCESSING
                 ev.started_at = ev.started_at or now
-            return Claim(stage.id, stage.evaluation_id, stage.organization_id, worker_id, stage.attempt)
+            return Claim(stage.id, stage.evaluation_id, stage.organization_id, worker_id, stage.attempt, lease_s)
     return None
 
 
@@ -171,10 +174,21 @@ def _load_input(session: Session, claim: Claim) -> tuple[StageInput, EngineVersi
     stored = content_store.get(session, organization_id=claim.organization_id, version_id=version.id)
     if stored is None:
         raise StageFailure("content_unavailable", "The document content was purged or is missing.")
+    previous = None
+    if (engine.engine_name, engine.version) in NEEDS_PREVIOUS and version.version_number > 1:
+        prev = session.scalar(select(DocumentVersion).where(
+            DocumentVersion.organization_id == claim.organization_id,
+            DocumentVersion.document_id == version.document_id,
+            DocumentVersion.version_number < version.version_number)
+            .order_by(DocumentVersion.version_number.desc()).limit(1))
+        if prev is not None:
+            pc = content_store.get(session, organization_id=claim.organization_id, version_id=prev.id)
+            previous = PreviousVersion(prev.version_number, prev.content_sha256,
+                                       pc.text if pc else None, pc.paragraphs if pc else [])
     return (StageInput(text=stored.text, paragraphs=stored.paragraphs,
                        expected_content_sha256=version.content_sha256, language=version.language,
                        extraction_status=version.extraction_status.value,
-                       upstream_limitations=tuple(version.limitations or ())),
+                       upstream_limitations=tuple(version.limitations or ()), previous=previous),
             engine, st.stage_name)
 
 
@@ -205,6 +219,47 @@ def _store_findings(session: Session, st: EvaluationStage, ev: Evaluation, engin
                 retrieved_at=now if ed.kind == EvidenceKind.EXTERNAL_RECORD else None))
 
 
+class LeaseKeeper:
+    """Renews the stage lease every ``lease_s / 3`` seconds while an engine runs,
+    so a long stage is not mistaken for an abandoned one. If the lease is lost
+    (another worker took over after a stall), renewal stops and the final
+    write is refused by ``_owned_stage``."""
+
+    def __init__(self, app: Flask, claim: Claim):
+        self.app, self.claim = app, claim
+        self.interval = max(1.0, claim.lease_s / 3)
+        self._stop = threading.Event()
+        self.renewals = 0
+        self.lost = False
+        self._thread = threading.Thread(target=self._run, name=f"lease-{claim.stage_id[:8]}", daemon=True)
+
+    def __enter__(self):
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc):
+        self._stop.set()
+        self._thread.join(timeout=self.interval + 5)
+
+    def _run(self) -> None:
+        st = EvaluationStage
+        while not self._stop.wait(self.interval):
+            try:
+                with session_scope(self.app) as s:
+                    res = s.execute(update(st).where(
+                        st.id == self.claim.stage_id, st.lease_owner == self.claim.worker_id,
+                        st.status == StageStatus.RUNNING)
+                        .values(lease_expires_at=utcnow() + timedelta(seconds=self.claim.lease_s))
+                        .execution_options(synchronize_session=False))
+                if res.rowcount != 1:
+                    self.lost = True
+                    log.warning("stage_lease_lost_during_run", extra={"stage_id": self.claim.stage_id})
+                    return
+                self.renewals += 1
+            except Exception:  # a transient DB error must not kill the stage; retry next tick
+                log.exception("stage_lease_renewal_failed", extra={"stage_id": self.claim.stage_id})
+
+
 def _backoff(attempt: int) -> int:
     return min(30 * 2 ** (attempt - 1), 900)
 
@@ -222,7 +277,8 @@ def execute(app: Flask, claim: Claim) -> StageStatus:
         if fn is None:
             raise StageFailure("engine_not_available",
                                f"Engine {engine.engine_name} v{engine.version} is not installed in this worker.")
-        output = fn(inp)  # no transaction open while the engine runs
+        with LeaseKeeper(app, claim):
+            output = fn(inp)  # no transaction open while the engine runs
     except StageFailure as exc:
         failure = exc
     except ContentIntegrityError:

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.0] — 2026-11-13 — Comparación de versiones y renovación del lease
+
+### Añadido
+- `integrity/engines/textsim.py`: primitivas de similitud léxica (secuencias de 5 palabras, Jaccard, contención, winnowing con su garantía de detección comprobada).
+- Motor `version_diff` v1 y etapa `version_comparison` (Dissertation): compara con la versión anterior y lista los párrafos modificados (con su similitud), añadidos y eliminados, con su ubicación. Recupera exactamente las ediciones de un corpus sintético con verdad conocida.
+- Renovación del lease mientras un motor trabaja (`LeaseKeeper`).
+
+### Corregido
+- En la primera versión de `version_diff`, un párrafo eliminado junto a uno editado se emparejaba mal y aparecían "añadidos" inexistentes. Ahora se empareja por mayor similitud, sin cruces.
+
 ## [0.6.0] — 2026-11-13 — Etapa 3b: primer motor con hallazgos e informe JSON
 
 ### Añadido

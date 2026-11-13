@@ -382,3 +382,66 @@ def test_partial_and_patent_reports_state_their_limits(app, client, tenant, monk
     assert any("[citation_consistency] stage failed (bad_input)" in l for l in rp["limitations"])
     pt = client.get(f"/api/v1/evaluations/{pid}/report", headers=h(tenant)).get_json()
     assert "not a legal opinion" in pt["disclaimer"][0]
+
+
+# ---------------------------------------------------------------- dissertation versions
+
+def test_dissertation_compares_with_the_previous_version(app, client, tenant):
+    from tests.test_version_diff import P1
+
+    v1 = [[p, n, t] for p, n, t in P1]
+    v2 = [list(x) for x in v1]
+    v2[1][2] = v2[1][2].replace("teachers", "120 secondary school teachers")
+    v2.append([3, 1, "An added chapter on ethics, consent procedures and the storage of interview data."])
+    body1 = payload(text="\n".join(t for *_, t in v1), paragraphs=v1)
+    doc = client.post("/api/v1/documents", json=body1, headers=h(tenant, key="doc-key-diss1")).get_json()
+    body2 = payload(text="\n".join(t for *_, t in v2), paragraphs=v2)
+    ver2 = client.post(f"/api/v1/documents/{doc['document_id']}/versions", json=body2,
+                       headers=h(tenant, key="doc-key-diss2")).get_json()["version"]
+    e1 = evaluate(client, tenant, doc["version"]["id"], product="dissertation", key="eval-diss-0001").get_json()["id"]
+    e2 = evaluate(client, tenant, ver2["id"], product="dissertation", key="eval-diss-0002").get_json()["id"]
+    drain(app, limit=40)
+    first = read(client, tenant, e1)["stages"][3]
+    assert first["name"] == "version_comparison" and first["result"]["payload"] == {"previous_version": None}
+    second = read(client, tenant, e2)
+    assert second["status"] == "completed"
+    p = second["stages"][3]["result"]["payload"]
+    assert p["previous_version"] == 1 and p["counts"] == {"unchanged": 3, "modified": 1, "added": 1, "removed": 0}
+    report = client.get(f"/api/v1/evaluations/{e2}/report", headers=h(tenant)).get_json()
+    assert report["stages"][3]["engine"]["name"] == "version_diff"
+
+
+def test_long_stage_keeps_its_lease(app, client, tenant, monkeypatch):
+    import threading
+    import time
+
+    from integrity.engines import content_check
+
+    started = threading.Event()
+
+    def slow(inp):
+        started.set()
+        time.sleep(3.5)  # longer than the 2 s lease
+        return content_check.run(inp)
+
+    monkeypatch.setitem(registry.ENGINES, ("content_check", "1"), slow)
+    vid = ingest(client, tenant)
+    eid = evaluate(client, tenant, vid).get_json()["id"]
+    with session_scope(app) as s:
+        claim = claim_next(s, "slow-worker", 2)
+    stolen = []
+
+    def competitor():
+        started.wait()
+        for _ in range(6):
+            time.sleep(0.5)
+            with session_scope(app) as s:
+                if claim_next(s, "thief", 2) is not None:
+                    stolen.append(1)
+
+    t = threading.Thread(target=competitor)
+    t.start()
+    assert execute(app, claim) == StageStatus.SUCCEEDED
+    t.join()
+    assert stolen == []  # the renewed lease was never considered expired
+    assert read(client, tenant, eid)["stages"][0]["attempt"] == 1

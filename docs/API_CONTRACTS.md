@@ -39,6 +39,7 @@ La plataforma no tiene organizaciones: cada usuario usa la referencia `user:<id>
 | Producto | Etapas |
 |---|---|
 | `research_paper`, `dissertation` | `content_check` (el texto coincide con el hash de la ingesta; resumen de calidad) → `doi_detection` (opcional: DOI escritos y su ubicación; **sin verificar**) → `citation_consistency` (opcional: citas sin referencia y referencias no citadas) |
+| `dissertation` (además) | `version_comparison` (opcional: compara con la versión anterior del mismo documento: párrafos sin cambios, modificados con su similitud, añadidos y eliminados, con su ubicación) |
 | `patent_integrity` | `content_check` |
 
 Estados: la evaluación pasa por `queued → processing → completed | partially_completed | failed | cancelled`. `partially_completed` significa que falló una etapa opcional; un fallo de una etapa obligatoria da `failed` y marca las siguientes como `skipped`.

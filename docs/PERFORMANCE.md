@@ -66,6 +66,15 @@ Tesis sintética de 300.000 palabras con 600 DOI, MariaDB, un proceso:
 
 Los motores actuales son baratos. Las cifras de motores reales (similitud, citas) se añadirán cuando existan.
 
+`version_diff` (dos versiones, 10 % de párrafos editados y 20 eliminados; tiempo sin `tracemalloc`, memoria en una ejecución aparte):
+
+| Palabras por versión | Párrafos | Tiempo | Pico de memoria |
+|---|---|---|---|
+| 100.000 | 834 | 0,96 s | 30 MB |
+| 300.000 | 2.500 | 2,92 s | 61 MB |
+
+Es el motor más caro hasta ahora, y sigue siendo pequeño para un proceso en segundo plano.
+
 ### Sin medir todavía
 Percentiles p50/p95/p99 bajo carga concurrente (también de la ingestión), throughput, CPU por petición, conexiones a MySQL bajo carga, imagen Docker (no hay daemon en esta sesión) y MySQL 8 real (solo se probó MariaDB).
 

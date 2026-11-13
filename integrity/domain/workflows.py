@@ -28,10 +28,11 @@ class StageSpec:
 CONTENT_CHECK = StageSpec("content_check", "content_check", "1")
 DOI_DETECTION = StageSpec("doi_detection", "doi_detection", "1", optional=True)
 CITATION_CONSISTENCY = StageSpec("citation_consistency", "citation_consistency", "1", optional=True)
+VERSION_DIFF = StageSpec("version_comparison", "version_diff", "1", optional=True)
 
 WORKFLOWS: dict[Product, tuple[StageSpec, ...]] = {
     Product.RESEARCH_PAPER: (CONTENT_CHECK, DOI_DETECTION, CITATION_CONSISTENCY),
-    Product.DISSERTATION: (CONTENT_CHECK, DOI_DETECTION, CITATION_CONSISTENCY),
+    Product.DISSERTATION: (CONTENT_CHECK, DOI_DETECTION, CITATION_CONSISTENCY, VERSION_DIFF),
     Product.PATENT_INTEGRITY: (CONTENT_CHECK,),
 }
 
