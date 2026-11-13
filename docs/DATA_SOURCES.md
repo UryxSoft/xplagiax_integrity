@@ -37,12 +37,41 @@ Además hay que registrar la licencia (`license_ref`), el texto de atribución, 
 
 **Fuera de alcance de los 3 productos** (en `condigo_referencia_inspiracion.txt`): Open Library, Gutendex, PoetryDB, GitHub Code Search, Dolos, JPlag, MOSS, Openverse, Wikimedia.
 
-## 3. Credenciales
+## 3. Cómo se habilita una fuente (implementado)
+
+1. `flask --app integrity.app:create_app integrity sources-sync` registra el catálogo (`integrity/integrations/catalog.py`). Las filas nuevas quedan **deshabilitadas y `unverified`**, con todos los permisos desconocidos. Volver a ejecutarlo nunca modifica filas existentes.
+2. Una persona lee los términos del proveedor y registra la revisión:
+
+   ```bash
+   flask --app integrity.app:create_app integrity source-review --code crossref \
+     --reviewed-by "Nombre o rol responsable" --terms-url "<URL de los términos leídos>" \
+     --authorization authorized --allow commercial_use --license "<licencia>" --enable
+   ```
+
+   - Cada uso no listado con `--allow` queda como **no permitido** (`False`).
+   - No se puede habilitar con términos `unverified` o `denied`, ni sin `--allow commercial_use`.
+   - La revisión queda en `audit_events` con el estado anterior, los permisos y quién la hizo.
+3. A partir de ahí el adaptador puede llamar. Con cualquier otro estado, la llamada **no sale a la red** y queda registrada como `blocked_by_policy` en `api_requests`, para que el informe pueda decir qué fuentes no se consultaron y por qué.
+
+Garantías de la base de adaptadores (`integrity/integrations/base.py`, probadas en `tests/test_integrations.py`):
+- HTTPS solo al host fijado por el adaptador; las redirecciones no se siguen (defensa SSRF).
+- Tope de tamaño de respuesta (2 MiB), tiempo límite (10 s), hasta 3 intentos solo para timeouts, 429 y 5xx, con espera exponencial y `Retry-After` acotado a 5 s.
+- Circuit breaker por fuente y por proceso: tras 5 fallos seguidos, la fuente se omite 60 s (`circuit_open`).
+- `api_requests` guarda una huella **con clave** (HMAC) de la consulta, no la consulta; así una huella no sirve para confirmar un título confidencial adivinado.
+- No hay caché: las respuestas se reducen a metadatos mínimos y solo se guarda su hash.
+
+### Crossref (adaptador construido, bloqueado por política)
+
+- Operaciones: búsqueda por DOI (`/works/{doi}`) y búsqueda bibliográfica (`/works?query.bibliographic=`, como máximo 5 resultados y 300 caracteres de consulta). Se conservan solo DOI, título, autores, año, revista, tipo y editorial; **los resúmenes se descartan**.
+- Los endpoints vienen de la documentación pública de Crossref, pero **no se pudieron volver a comprobar en esta sesión**: `www.crossref.org` y `api.crossref.org` no son accesibles desde el entorno. Para revisar los términos y ejecutar la prueba en vivo (`XI_TEST_CROSSREF_LIVE=1 python -m pytest tests/test_live_crossref.py`) hay que permitir esos hosts en la red del entorno.
+- `XI_CROSSREF_MAILTO`: dirección de contacto **del operador** que se envía en el `User-Agent`. Nunca el correo de un usuario final.
+
+## 4. Credenciales
 
 - Cada adaptador lee sus credenciales de variables de entorno con nombre propio (por ejemplo `XI_EPO_OPS_CONSUMER_KEY`), que se inyectan desde un gestor de secretos. Se definirán en la Etapa 3.
 - Las credenciales que hoy están en `xplagiax_pantents_api_keys.txt` **están comprometidas** y deben rotarse antes de usarse (INITIAL_AUDIT §2).
 - Hay que confirmar a qué entidad legal pertenecen las cuentas de desarrollador. Una cuenta personal puede no autorizar uso comercial aunque la API sí lo permita.
 
-## 4. Privacidad de las consultas salientes
+## 5. Privacidad de las consultas salientes
 
 Las consultas a proveedores se construyen con metadatos y términos mínimos (DOI, título, número de publicación, términos técnicos seleccionados). **No se envía nunca el texto completo de una reivindicación no publicada**: una patente sin presentar es confidencial y una búsqueda en un servicio externo puede considerarse divulgación. `api_requests` guarda la huella de la consulta, no la consulta. Que el usuario pueda consentir búsquedas con texto de las reivindicaciones es una decisión de producto y legal pendiente.

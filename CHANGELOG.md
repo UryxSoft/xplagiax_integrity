@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0] — 2026-11-13 — Etapa 3a: base de adaptadores y Crossref
+
+### Añadido
+- `integrity/integrations/base.py`: toda llamada externa pasa por la política de términos de la fuente (sin red si no está autorizada), HTTPS a un único host, sin redirecciones, tope de respuesta, reintentos acotados, circuit breaker y registro en `api_requests`.
+- Adaptador Crossref (búsqueda por DOI y bibliográfica). Bloqueado por política hasta que se revisen sus términos.
+- CLI `sources-sync` (registra el catálogo, siempre deshabilitado) y `source-review` (revisión humana auditada; la única forma de habilitar una fuente).
+- `integrity/domain/doi.py`: detección y normalización de DOI con posiciones en el texto.
+- Configuración `XI_CROSSREF_MAILTO` (contacto del operador).
+- Prueba en vivo opcional `tests/test_live_crossref.py`.
+
 ## [0.3.0] — 2026-11-13 — Etapa 2: ingestión de documentos
 
 ### Añadido

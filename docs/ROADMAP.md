@@ -36,3 +36,13 @@ Falta para cerrarla:
 - ~~Normalización con mapa de offsets~~ hecho (`domain/normalization.py`). Falta la segmentación en frases y fragmentos para los motores.
 - Proceso periódico de purga por retención.
 - Limitar la concurrencia de ingestas grandes (depende del rate limiting, Etapa 1b).
+
+## Estado de la Etapa 3a (2026-11-13)
+
+Hecho: base común de adaptadores (política de términos, HTTPS a un único host, sin redirecciones, reintentos, circuit breaker, registro en `api_requests` con huella HMAC), CLI `sources-sync` y `source-review`, adaptador Crossref y detección de DOI.
+
+Falta:
+- **Revisión humana de los términos de Crossref** y permitir `www.crossref.org` / `api.crossref.org` en la red del entorno para la prueba en vivo.
+- Adaptadores de PubMed, Europe PMC y arXiv (misma base).
+- Caché de respuestas, solo para fuentes con `allows_storage` y `cache_ttl_seconds` revisados.
+- El circuit breaker es por proceso. Con varios workers, cada uno aprende por separado; compartirlo requiere Valkey (decisión pendiente).

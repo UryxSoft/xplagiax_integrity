@@ -31,7 +31,9 @@ Manuscritos sin publicar, tesis, **invenciones sin presentar** (su divulgación 
 | Visibilidad de documentos por rol; documentos ajenos responden 404 | Implementado | `application/documents.py`, `test_documents.py` |
 | Integridad del contenido guardado (SHA-256 del blob comprobado al leer) | Implementado | `infrastructure/content_store.py` |
 | Validación de archivos subidos (MIME real, bombas ZIP, PDF malformados) | Pendiente — solo si se habilita `local_upload` | ADR-0002 |
-| Protección SSRF en adaptadores (lista de hosts permitidos, sin redirecciones a IPs privadas) | Pendiente — Etapa 3 | — |
+| Protección SSRF en adaptadores: un único host HTTPS fijado por adaptador, redirecciones no seguidas, tope de respuesta | Implementado | `integrations/base.py`, `test_integrations.py` |
+| Fuentes externas bloqueadas hasta una revisión humana de términos, auditada | Implementado | `cli.py source-review`, `test_integrations.py` |
+| Las consultas salientes no se guardan; solo una huella HMAC | Implementado | `integrations/base.py` |
 | Purga de contenido bajo petición, auditada | Implementado | `DELETE /documents/{id}` |
 | Purga automática por retención | Pendiente | DATA_MODEL §5 |
 | Firma de certificados | Pendiente — Etapa 7 | — |
