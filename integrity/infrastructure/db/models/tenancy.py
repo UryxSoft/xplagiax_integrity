@@ -35,7 +35,7 @@ class User(IdMixin, Base):
         TABLE_ARGS,
     )
 
-    organization_id: Mapped[str] = mapped_column(ID, ForeignKey("organizations.id"), index=True)
+    organization_id: Mapped[str] = mapped_column(ID, ForeignKey("organizations.id"))
     external_ref: Mapped[str] = mapped_column(String(64))
     role: Mapped[UserRole] = mapped_column(enum_col(UserRole), default=UserRole.MEMBER)
     status: Mapped[RecordStatus] = mapped_column(enum_col(RecordStatus), default=RecordStatus.ACTIVE)

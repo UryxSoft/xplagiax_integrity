@@ -16,7 +16,14 @@ def test_from_env_reads_prefixed_variables():
 
 def test_non_integer_is_rejected():
     with pytest.raises(ConfigError):
-        Settings.from_env({"XI_DB_POOL_SIZE": "many"})
+        Settings.from_env({"XI_ENV": "testing", "XI_DB_POOL_SIZE": "many"})
+
+
+@pytest.mark.parametrize("env", [{}, {"XI_ENV": ""}])
+def test_missing_environment_name_fails_closed(env):
+    """Audit M3: no silent fallback to development defaults."""
+    with pytest.raises(ConfigError, match="XI_ENV"):
+        Settings.from_env(env)
 
 
 @pytest.mark.parametrize(

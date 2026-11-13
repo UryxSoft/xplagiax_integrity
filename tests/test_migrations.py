@@ -32,17 +32,20 @@ def test_constraint_and_index_names_fit_mysql_limit():
     assert not too_long
 
 
-def test_every_tenant_owned_table_indexes_or_keys_organization():
-    """organization_id must lead at least one index/unique key (fast tenant filtering)."""
+def test_every_tenant_owned_table_has_an_index_led_by_organization():
+    """organization_id must be the first column of an explicit index or unique
+    key on every tenant-owned table, so tenant filters never scan the table."""
+    from sqlalchemy import UniqueConstraint
+
     missing = []
     for table in Base.metadata.sorted_tables:
         if "organization_id" not in table.c:
             continue
-        leading = {tuple(ix.columns.keys())[0] for ix in table.indexes}
-        leading |= {tuple(c.columns.keys())[0] for c in table.constraints if hasattr(c, "columns") and len(c.columns)}
-        if "organization_id" not in leading and "id" not in leading:
+        leading = {list(ix.columns.keys())[0] for ix in table.indexes}
+        leading |= {list(c.columns.keys())[0] for c in table.constraints if isinstance(c, UniqueConstraint)}
+        if "organization_id" not in leading:
             missing.append(table.name)
-    assert not missing
+    assert not missing, missing
 
 
 def test_offline_mysql_ddl_renders(tmp_path, capsys):
@@ -52,6 +55,7 @@ def test_offline_mysql_ddl_renders(tmp_path, capsys):
     ddl = capsys.readouterr().out
     assert "DATETIME(6)" in ddl
     assert "ENGINE=InnoDB" in ddl and "CHARSET=utf8mb4" in ddl
+    assert ddl.count("COLLATE utf8mb4_bin") == len(Base.metadata.tables)
     assert "FOREIGN KEY(document_version_id, organization_id) REFERENCES document_versions (id, organization_id)" in ddl
 
 

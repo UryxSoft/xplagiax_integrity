@@ -19,7 +19,7 @@ from flask import Flask, g, has_request_context, request
 
 from integrity.core.request_context import get_correlation_id
 
-_SENSITIVE_FRAGMENTS = ("authorization", "password", "secret", "token", "api_key", "apikey", "pepper", "cookie")
+_SENSITIVE_FRAGMENTS = ("authorization", "password", "secret", "token", "api_key", "api-key", "apikey", "pepper", "cookie")
 _RESERVED = set(vars(logging.makeLogRecord({})).keys()) | {"message", "asctime"}
 REDACTED = "[REDACTED]"
 

@@ -18,7 +18,10 @@ NAMING = {
     "pk": "pk_%(table_name)s",
 }
 
-TABLE_ARGS = {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"}
+# utf8mb4_bin: comparisons are case- and accent-sensitive on MySQL 8 and MariaDB,
+# exactly as on SQLite. Identifiers such as "org-a" and "ORG-A" are different
+# values on every engine (audit finding M4).
+TABLE_ARGS = {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_bin"}
 
 ID = String(36)
 SHA256 = String(64)
@@ -91,3 +94,11 @@ def tenant_key():
     from sqlalchemy import UniqueConstraint
 
     return UniqueConstraint("id", "organization_id")
+
+
+def composite_fk(local_columns: list[str], parent_table: str, parent_columns: list[str], **kw: Any):
+    """Multi-column FK used to pin a child row to a consistent parent tuple
+    (e.g. a finding's stage must belong to the finding's own evaluation)."""
+    from sqlalchemy import ForeignKeyConstraint
+
+    return ForeignKeyConstraint(local_columns, [f"{parent_table}.{c}" for c in parent_columns], **kw)

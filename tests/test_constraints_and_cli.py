@@ -47,9 +47,10 @@ def test_certificate_cannot_be_certified_without_report(app, factory):
     with pytest.raises(IntegrityError):
         with session_scope(app) as s:
             e = _evaluation(s, org)
-            s.add(Certificate(organization_id=org, evaluation_id=e.id, status=CertificateStatus.CERTIFIED,
+            s.add(Certificate(organization_id=org, evaluation_id=e.id, document_version_id=e.document_version_id,
+                              status=CertificateStatus.CERTIFIED,
                               verification_code="ABC", document_content_sha256=SHA,
-                              criteria_profile="default", criteria_version="1"))
+                              criteria_profile="default", criteria_version="1", criteria_sha256=SHA))
 
 
 def test_finding_confidence_must_be_in_unit_range(app, factory):

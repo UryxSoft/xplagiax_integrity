@@ -43,11 +43,17 @@ class Settings:
     db_max_overflow: int = 2
     db_pool_recycle_s: int = 1800
     db_connect_timeout_s: int = 5
+    # Upper bound for a single DB read/write; a hung database must not hang a worker.
+    db_io_timeout_s: int = 30
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
         env = os.environ if env is None else env
-        name = env.get("XI_ENV", "development")
+        # Fail closed: a deployment that forgets XI_ENV must not silently run
+        # with development defaults (audit finding M3).
+        name = env.get("XI_ENV")
+        if not name:
+            raise ConfigError(f"XI_ENV must be set explicitly to one of {_VALID_ENVS}")
         defaults = cls()
         return cls(
             env=name,
@@ -59,6 +65,7 @@ class Settings:
             db_max_overflow=_int(env, "XI_DB_MAX_OVERFLOW", defaults.db_max_overflow),
             db_pool_recycle_s=_int(env, "XI_DB_POOL_RECYCLE_S", defaults.db_pool_recycle_s),
             db_connect_timeout_s=_int(env, "XI_DB_CONNECT_TIMEOUT_S", defaults.db_connect_timeout_s),
+            db_io_timeout_s=_int(env, "XI_DB_IO_TIMEOUT_S", defaults.db_io_timeout_s),
         )
 
     def validate(self) -> "Settings":
@@ -69,6 +76,8 @@ class Settings:
             errors.append("XI_LOG_LEVEL must be DEBUG, INFO, WARNING or ERROR")
         if self.max_request_bytes <= 0:
             errors.append("XI_MAX_REQUEST_BYTES must be positive")
+        if self.db_connect_timeout_s < 1 or self.db_io_timeout_s < 1:
+            errors.append("database timeouts must be >= 1 second")
         if self.db_pool_size < 1 or self.db_max_overflow < 0:
             errors.append("XI_DB_POOL_SIZE must be >=1 and XI_DB_MAX_OVERFLOW >=0")
         if self.env == "production":

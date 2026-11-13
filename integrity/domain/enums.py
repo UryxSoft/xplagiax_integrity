@@ -64,6 +64,7 @@ class StageStatus(StrEnum):
     SUCCEEDED = "succeeded"
     SKIPPED = "skipped"     # e.g. source not authorised; must be reported as a limitation
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class Severity(StrEnum):

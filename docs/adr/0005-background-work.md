@@ -8,6 +8,9 @@ Hace falta procesar en segundo plano, con estado durable por etapa, reintentos, 
 
 ## Decisión
 - `evaluation_stages` **es** la cola. Un worker toma una etapa con un `UPDATE … SET status='running', lease_owner=?, lease_expires_at=? WHERE id=? AND status='pending'` condicional (o `SELECT … FOR UPDATE SKIP LOCKED` en MySQL 8) y renueva el lease mientras trabaja. Un lease caducado vuelve a `pending` si `attempt < max_attempts`.
+- **Orden:** un worker solo toma una etapa si no queda ninguna etapa anterior (`sequence` menor) de la misma evaluación sin terminar, y si `not_before` es nulo o ya pasó. `UNIQUE(evaluation_id, sequence)` evita ambigüedades.
+- **Reintentos:** al fallar, la etapa vuelve a `pending` con `not_before` = ahora + espera creciente, hasta `max_attempts`.
+- **Cancelación:** cancelar una evaluación marca sus etapas pendientes como `cancelled`; la que está en curso termina y no se inicia la siguiente.
 - Sin Celery ni RQ: el estado de la cola y el estado de la evaluación viven en un solo sitio y el sistema de colas no cuesta RAM ni mantenimiento.
 - Valkey (instancia propia, no el Redis compartido) se introduce para el rate limiting y la caché de respuestas de proveedores, cuando esas funciones existan.
 
