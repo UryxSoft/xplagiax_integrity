@@ -27,7 +27,20 @@ Cabeceras transversales:
 | GET | `/documents/{id}` | sí | Metadatos del documento y de sus versiones. **Nunca devuelve el texto** |
 | DELETE | `/documents/{id}` | sí | Purga el contenido de todas las versiones. Conserva hashes, metadatos y auditoría. Idempotente |
 
+| POST | `/evaluations` | sí | Cuerpo `{document_version_id, product, criteria_profile?, criteria_version?}` + `Idempotency-Key`. `202` encolada, `200` repetición. Errores: 404 (versión no visible), 409, 410 (documento borrado), 422 |
+| GET | `/evaluations/{id}` | sí | Estado, etapas (estado, intentos, error) y resultado de cada etapa terminada (`payload`, `payload_sha256`, `limitations`) |
+| POST | `/evaluations/{id}/cancel` | sí | Idempotente. Cancela las etapas pendientes; la que esté en curso termina y su resultado se descarta |
+
 La plataforma no tiene organizaciones: cada usuario usa la referencia `user:<id>` (INTEGRATION_XPLAGIAX §2).
+
+**Etapas disponibles hoy** (`integrity/domain/workflows.py`). Solo figuran las que tienen un motor real y probado:
+
+| Producto | Etapas |
+|---|---|
+| `research_paper`, `dissertation` | `content_check` (el texto coincide con el hash de la ingesta; resumen de calidad) → `doi_detection` (opcional: DOI escritos y su ubicación; **sin verificar**) |
+| `patent_integrity` | `content_check` |
+
+Estados: la evaluación pasa por `queued → processing → completed | partially_completed | failed | cancelled`. `partially_completed` significa que falló una etapa opcional; un fallo de una etapa obligatoria da `failed` y marca las siguientes como `skipped`.
 
 **Visibilidad de documentos** según el usuario afirmado en `X-Integrity-User`:
 

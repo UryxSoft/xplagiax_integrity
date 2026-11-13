@@ -154,4 +154,36 @@ def register_cli(app: Flask) -> None:
                                         "allowed": sorted(allowed), "enabled": enable, "reviewed_by": reviewed_by})
             click.echo(f"{code}: {authorization}, enabled={enable}, allowed={','.join(sorted(allowed)) or 'none'}")
 
+    @group.command("worker")
+    @click.option("--once", is_flag=True, help="Process at most one stage and exit.")
+    @click.option("--poll-interval", type=float, default=2.0, show_default=True)
+    @click.option("--lease", "lease_s", type=int, default=300, show_default=True,
+                  help="Seconds a claimed stage stays reserved for this worker.")
+    @click.option("--max-stages", type=int, default=0, help="Exit after N stages (0 = no limit). Bounds slow leaks.")
+    def worker(once: bool, poll_interval: float, lease_s: int, max_stages: int) -> None:
+        """Run the background stage worker. One stage at a time; scale with processes."""
+        import signal
+        import time
+
+        from integrity.workers.runner import new_worker_id, run_once
+
+        stop = {"flag": False}
+
+        def _stop(*_):
+            stop["flag"] = True  # finish the current stage, then exit
+
+        signal.signal(signal.SIGTERM, _stop)
+        signal.signal(signal.SIGINT, _stop)
+        wid, done = new_worker_id(), 0
+        click.echo(f"worker {wid} started", err=True)
+        while not stop["flag"]:
+            status = run_once(current_app, wid, lease_s)
+            if status is not None:
+                done += 1
+            if once or (max_stages and done >= max_stages):
+                break
+            if status is None:
+                time.sleep(poll_interval)
+        click.echo(f"worker {wid} stopped after {done} stage(s)", err=True)
+
     app.cli.add_command(group)

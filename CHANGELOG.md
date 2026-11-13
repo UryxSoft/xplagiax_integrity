@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.0] — 2026-11-13 — Etapa 3c: evaluaciones y workers
+
+### Añadido
+- `POST /api/v1/evaluations`, `GET /api/v1/evaluations/{id}`, `POST /api/v1/evaluations/{id}/cancel`.
+- Flujos de etapas por producto con la configuración congelada (`config_snapshot` + hash) y la versión de motor fijada al crear.
+- Worker (`flask integrity worker`): toma de etapas con lease (`SKIP LOCKED` en MySQL), motor ejecutado fuera de transacción, reintentos con espera, recuperación de workers caídos, cancelación.
+- Motores `content_check` (identidad del contenido por hash) y `doi_detection` (DOI escritos y su ubicación, sin verificar).
+- Capa `integrity/engines/`: funciones puras, sin base de datos ni HTTP (lo comprueba un test).
+- Servicio `worker` en `docker-compose.yml`.
+
 ## [0.4.0] — 2026-11-13 — Etapa 3a: base de adaptadores y Crossref
 
 ### Añadido

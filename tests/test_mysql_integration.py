@@ -141,3 +141,52 @@ def test_concurrent_tenant_provisioning_is_idempotent(mysql_app):
     with session_scope(mysql_app) as s:
         assert s.scalar(select(func.count()).select_from(Organization)) == 1
         assert s.scalar(select(func.count()).select_from(User)) == 1
+
+
+def test_parallel_workers_run_each_stage_exactly_once(mysql_app):
+    """4 workers in parallel over 12 evaluations (24 stages) on InnoDB with SKIP LOCKED."""
+    import threading
+
+    from sqlalchemy import func, select
+
+    from integrity.domain.enums import ClientScope, EvaluationStatus, StageStatus
+    from integrity.infrastructure.db.models import EvaluationResult, EvaluationStage, ServiceClient
+    from integrity.security.api_keys import generate_key
+    from integrity.workers.runner import run_once
+    from tests.test_documents import payload
+
+    key = generate_key(TEST_PEPPER)
+    with session_scope(mysql_app) as s:
+        s.add(Organization(external_ref="user:1", name="u1"))
+        s.add(ServiceClient(name="c", key_prefix=key.prefix, key_hash=key.digest, scope=ClientScope.PLATFORM))
+    c = mysql_app.test_client()
+    base = {"Authorization": f"Bearer {key.plaintext}", "X-Integrity-Org": "user:1"}
+    for i in range(12):
+        body = payload(text=f"Document number {i}. " + "Enough words to be analysed here. " * 3 + "doi:10.1000/x" + str(i))
+        v = c.post("/api/v1/documents", json=body, headers={**base, "Idempotency-Key": f"doc-key-{i:04d}"}).get_json()
+        r = c.post("/api/v1/evaluations", json={"document_version_id": v["version"]["id"], "product": "research_paper"},
+                   headers={**base, "Idempotency-Key": f"eval-key-{i:04d}"})
+        assert r.status_code == 202
+
+    errors = []
+
+    def worker(n):
+        try:
+            idle = 0
+            while idle < 3:
+                idle = idle + 1 if run_once(mysql_app, f"w{n}") is None else 0
+        except Exception as exc:  # pragma: no cover - surfaced below
+            errors.append(repr(exc))
+
+    threads = [threading.Thread(target=worker, args=(n,)) for n in range(4)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert not errors, errors
+    with session_scope(mysql_app) as s:
+        stages = s.scalars(select(EvaluationStage)).all()
+        assert len(stages) == 24
+        assert all(st.status == StageStatus.SUCCEEDED and st.attempt == 1 for st in stages), \
+            [(st.stage_name, st.status, st.attempt, st.error_code) for st in stages if st.attempt != 1 or st.status != StageStatus.SUCCEEDED]
+        assert s.scalar(select(func.count()).select_from(EvaluationResult)) == 24
+        from integrity.infrastructure.db.models import Evaluation
+        assert {e.status for e in s.scalars(select(Evaluation))} == {EvaluationStatus.COMPLETED}

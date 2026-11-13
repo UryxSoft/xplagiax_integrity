@@ -36,5 +36,14 @@ services:
       migrate: { condition: service_completed_successfully }
     mem_limit: 256m
 
+  worker:
+    build: .
+    command: ["flask", "--app", "integrity.app:create_app", "integrity", "worker", "--max-stages", "500"]
+    environment: *app_env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    mem_limit: 512m
+    restart: unless-stopped
+
 volumes:
   mysql-data:

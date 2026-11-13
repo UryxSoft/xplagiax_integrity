@@ -17,6 +17,8 @@ alembic upgrade head
 python -m pytest
 flask --app integrity.app:create_app integrity create-client --name local --scope platform
 flask --app integrity.app:create_app run
+# in another terminal: background stage worker
+flask --app integrity.app:create_app integrity worker
 curl -s localhost:5000/api/v1/health/ready
 ```
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from flask import Blueprint, Flask
 
-from integrity.api.v1 import auth_context, documents, health, tenants
+from integrity.api.v1 import auth_context, documents, evaluations, health, tenants
 from integrity.application import errors as app_errors
 from integrity.core import errors as http_errors
 
@@ -31,6 +31,7 @@ def register_v1(app: Flask) -> None:
     auth_context.register(bp)
     tenants.register(bp)
     documents.register(bp)
+    evaluations.register(bp)
 
     @bp.errorhandler(app_errors.ApplicationError)
     def _application_error(exc: app_errors.ApplicationError):

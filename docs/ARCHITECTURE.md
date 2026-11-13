@@ -184,7 +184,8 @@ Las pruebas nunca llaman a proveedores reales. Las pruebas en vivo de los adapta
 | Base de adaptadores: política, transporte, reintentos, circuit breaker, registro | Implementado | `test_integrations.py` |
 | Adaptador Crossref | Construido, **bloqueado por política** hasta revisar términos | `test_integrations.py`; prueba en vivo opcional |
 | Todos los motores científicos | Pendiente / requiere investigación / requiere API externa | `domain/capabilities.py`, `GET /api/v1/version` |
-| Workers | Pendiente (ADR-0005) | — |
+| Evaluaciones (crear, consultar, cancelar) y workers con lease | Implementado | `test_evaluations.py`, `test_mysql_integration.py` |
+| Motores `content_check` y `doi_detection` | Implementado (alcance limitado: detección, no verificación) | `test_evaluations.py` |
 | Informes, certificados, verificación | Pendiente (el esquema existe) | — |
 
 ## 11. Riesgos técnicos
